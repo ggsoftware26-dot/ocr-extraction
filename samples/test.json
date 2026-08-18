@@ -1,0 +1,246 @@
+{
+  "job_id": "6174406b-be8d-4f22-88a7-c1ecd9ea5970",
+  "status": "completed",
+  "result": {
+    "document_type": "Order",
+    "summary": "This document is an order from Kaufman Home to Eliyahu Gaz for furniture items, detailing the order, pricing, and payment information.",
+    "fields": [
+      {
+        "key": "document_number",
+        "value": "12946893",
+        "description": "The unique identifying number for this order document.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "sender_company_name",
+        "value": "המרכז הבריאותי ד.ע בע״מ",
+        "description": "The name of the company that issued the order.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "sender_company_id",
+        "value": "511363582",
+        "description": "The company identification number (H.P. - ח.פ).",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "sender_address",
+        "value": "ת״ד 600 ראש העין 48105",
+        "description": "The postal address of the sender company.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "sender_phone",
+        "value": "03-9533111",
+        "description": "The phone number of the sender company.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "customer_name",
+        "value": "אליאל גז",
+        "description": "The name of the customer to whom the order is addressed.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "customer_mobile_phone",
+        "value": "0543000748",
+        "description": "The mobile phone number of the customer.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "shipping_address_recipient_name",
+        "value": "אליאל גז",
+        "description": "The name of the recipient for shipping.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "shipping_address_street",
+        "value": "סוטין 27",
+        "description": "The street address for shipping.",
+        "confidence": 0.9,
+        "page": 1
+      },
+      {
+        "key": "shipping_address_city_zip",
+        "value": "פתח תקווה 00000",
+        "description": "The city and postal code for shipping.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "customer_account_key",
+        "value": "1121551435",
+        "description": "The customer's account key.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "order_reference_date",
+        "value": "09/08/2025",
+        "description": "The date of the order reference.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "order_value_date",
+        "value": "10/08/2025",
+        "description": "The date of value for the order.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "order_time",
+        "value": "22:48",
+        "description": "The time of the order.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "salesperson_name",
+        "value": "אתר אינטרנט",
+        "description": "The name of the salesperson or sales channel.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "order_owner_details",
+        "value": "איסוף עצמי פתח תקווה",
+        "description": "Details regarding the order owner or pickup method.",
+        "confidence": 0.9,
+        "page": 1
+      },
+      {
+        "key": "branch_code",
+        "value": "WS",
+        "description": "The code of the branch handling the order.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "total_amount_before_vat",
+        "value": "415.25",
+        "description": "The total amount before VAT.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "total_amount_after_discount",
+        "value": "415.25",
+        "description": "The total amount after discount.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "vat_rate_percentage",
+        "value": "18.00%",
+        "description": "The percentage of Value Added Tax.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "vat_amount",
+        "value": "74.75",
+        "description": "The amount of Value Added Tax.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "total_amount_due",
+        "value": "490.00",
+        "description": "The total amount due for the order.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "receipt_number",
+        "value": "18602105",
+        "description": "The number of the receipt.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "kaufman_group_contact_phone",
+        "value": "03-7176666",
+        "description": "Kaufman Group's contact phone number.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "kaufman_group_contact_address",
+        "value": "פארק לב הארץ, צומת קסם, ראש העין 48105, ת.ד 60.",
+        "description": "Kaufman Group's contact address.",
+        "confidence": 0.95,
+        "page": 1
+      },
+      {
+        "key": "kaufman_group_website",
+        "value": "www.kaufman-group.co.il",
+        "description": "Kaufman Group's website.",
+        "confidence": 0.95,
+        "page": 1
+      }
+    ],
+    "tables": [
+      {
+        "name": "Order Items",
+        "description": "Details of items ordered, including quantity, prices, and totals.",
+        "headers": [
+          "#",
+          "מס' פריט",
+          "תאור",
+          "כמות",
+          "מחיר יח' לפני הנחה",
+          "% הנחה",
+          "מחיר יח' לאחר הנחה",
+          "סה״כ"
+        ],
+        "rows": [
+          [
+            "1",
+            "060DELICHAIR002",
+            "איסוף מהחנות",
+            "1",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00"
+          ],
+          [
+            "2",
+            "200COZYGRAY8332M6",
+            "כסא רשת קולומביה גוף אפור ריפוד אפור אריזה צבעונית להרכבה עצמית COLUMBIA",
+            "1",
+            "790.00",
+            "37.98",
+            "490.00",
+            "490.00"
+          ]
+        ],
+        "page": 1
+      },
+      {
+        "name": "Payment Details",
+        "description": "Details of the payment made.",
+        "headers": [
+          "סוג תשלום",
+          "פרטי תשלום",
+          "כמות תשלומים",
+          "סכום תשלום ראשון",
+          "סה״כ"
+        ],
+        "rows": [["אשראי", "ישראכרט - 4235", "1", "490.00", "490.00"]],
+        "page": 1
+      }
+    ]
+  },
+  "processing_time_ms": 23875,
+  "error": null
+}
