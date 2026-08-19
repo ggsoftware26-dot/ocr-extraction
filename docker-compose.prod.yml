@@ -41,6 +41,24 @@ services:
       api:
         condition: service_started
 
+  ingest:
+    image: ocr-extraction:latest
+    restart: unless-stopped
+    command: ['node', 'dist/ingest']
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      INGEST_PORT: '3001'
+      INGEST_PUBLIC_URL: http://ingest:3001
+      OCR_API_URL: http://api:3000
+    volumes:
+      - ingest-data:/app/data
+    depends_on:
+      api:
+        condition: service_started
+    expose:
+      - '3001'
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -58,5 +76,6 @@ services:
 
 volumes:
   redis-data:
+  ingest-data:
   caddy-data:
   caddy-config:

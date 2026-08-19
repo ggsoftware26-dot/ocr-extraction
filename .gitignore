@@ -45,4 +45,5 @@ temp
 uploads
 samples
 keys
+data
 deploy/vps/ssh.config
