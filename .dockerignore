@@ -13,6 +13,6 @@ temp
 uploads
 test
 **/*spec.ts
-deploy
+deploy/vps
 Dockerfile
 .dockerignore
