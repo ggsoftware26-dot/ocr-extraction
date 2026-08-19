@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>OCR Results</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --success: #059669;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --queued: #6366f1;
+      --radius: 14px;
+      --shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    .app {
+      max-width: 720px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1rem 1rem calc(1.5rem + var(--safe-bottom));
+      min-width: 0;
+    }
+
+    header {
+      margin-bottom: 1.25rem;
+    }
+
+    header h1 {
+      margin: 0 0 0.25rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    header a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1rem;
+      margin-bottom: 1rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: var(--muted);
+    }
+
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      background: #fff;
+    }
+
+    input:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.25);
+      border-color: var(--accent);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    button.primary {
+      flex: 1;
+      min-width: 140px;
+      border: none;
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    button.primary:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .jobs-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .jobs-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .jobs-header small {
+      color: var(--muted);
+    }
+
+    .job-list {
+      display: grid;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+
+    .job-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.85rem;
+      background: #fff;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .job-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+
+    .job-body {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .job-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .thumb {
+      width: 52px;
+      height: 52px;
+      flex-shrink: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumb-doc {
+      color: #64748b;
+      background: #f8fafc;
+    }
+
+    .thumb-doc svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    .thumb-pdf {
+      color: #dc2626;
+      background: #fef2f2;
+    }
+
+    .thumb-pdf svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    .job-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      word-break: break-word;
+    }
+
+    .job-meta {
+      margin-top: 0.25rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      word-break: break-all;
+    }
+
+    .badge {
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      color: #fff;
+    }
+
+    .badge.completed { background: var(--success); }
+    .badge.expired { background: #94a3b8; }
+
+    .job-result {
+      margin-top: 0.65rem;
+      min-width: 0;
+    }
+
+    .job-result summary {
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .result-panel {
+      margin-top: 0.5rem;
+      max-width: 100%;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 8px;
+    }
+
+    .job-result pre {
+      margin: 0;
+      padding: 0.65rem;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 0.72rem;
+      line-height: 1.45;
+      max-height: min(320px, 55vh);
+      max-width: 100%;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 1.5rem 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .loading {
+      text-align: center;
+      color: var(--muted);
+      padding: 2rem 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(1rem + var(--safe-bottom));
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      max-width: calc(100vw - 2rem);
+      z-index: 20;
+    }
+
+    .toast.show { opacity: 0.95; }
+
+    @media (min-width: 640px) {
+      .app { padding-top: 1.5rem; }
+      header h1 { font-size: 1.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>OCR Results</h1>
+      <p>Browse stored extractions from Cloudflare R2. <a href="/views/upload.html">Upload new files</a></p>
+    </header>
+
+    <section class="card">
+      <label for="apiKey">API key</label>
+      <input id="apiKey" type="password" placeholder="Bearer token or x-api-key value" autocomplete="off" />
+      <div class="actions">
+        <button id="loadBtn" class="primary">Load results</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="jobs-header">
+        <h2>Results</h2>
+        <small id="resultCount">—</small>
+      </div>
+      <div id="resultList" class="job-list">
+        <div class="empty">Enter your API key and load results.</div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = 'ocr-extraction-api-key';
+    const API_BASE = '/v1/results';
+
+    const apiKeyInput = document.getElementById('apiKey');
+    const loadBtn = document.getElementById('loadBtn');
+    const resultListEl = document.getElementById('resultList');
+    const resultCountEl = document.getElementById('resultCount');
+    const toastEl = document.getElementById('toast');
+
+    /** @type {Map<string, string>} jobId -> blob preview URL */
+    const previewUrls = new Map();
+
+    apiKeyInput.value = localStorage.getItem(STORAGE_KEY) || '';
+    apiKeyInput.addEventListener('change', () => {
+      localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim());
+    });
+
+    function authHeaders() {
+      const key = apiKeyInput.value.trim();
+      if (!key) throw new Error('API key is required');
+      return {
+        Authorization: `Bearer ${key}`,
+        'X-API-Key': key,
+      };
+    }
+
+    function toast(message) {
+      toastEl.textContent = message;
+      toastEl.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => toastEl.classList.remove('show'), 2800);
+    }
+
+    function escapeHtml(value) {
+      return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '—';
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return '—';
+      return date.toLocaleString();
+    }
+
+    function pdfIconHtml() {
+      return `<div class="thumb thumb-pdf" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+      </div>`;
+    }
+
+    function docIconHtml() {
+      return `<div class="thumb thumb-doc" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+      </div>`;
+    }
+
+    function placeholderThumbHtml(kind) {
+      if (kind === 'pdf') return pdfIconHtml();
+      return docIconHtml();
+    }
+
+    function renderThumbHtml(kind, previewUrl, name) {
+      if (kind === 'image' && previewUrl) {
+        return `<div class="thumb"><img src="${previewUrl}" alt="Preview of ${escapeHtml(name)}" loading="lazy" /></div>`;
+      }
+      if (kind === 'pdf') return pdfIconHtml();
+      return docIconHtml();
+    }
+
+    function revokeAllPreviews() {
+      for (const url of previewUrls.values()) {
+        URL.revokeObjectURL(url);
+      }
+      previewUrls.clear();
+    }
+
+    async function fetchPreviewUrl(jobId) {
+      const response = await fetch(`${API_BASE}/${jobId}/preview`, {
+        headers: authHeaders(),
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      previewUrls.set(jobId, url);
+      return url;
+    }
+
+    function syncResultBlock(card, item) {
+      let details = card.querySelector('.job-result');
+      if (!item.result) {
+        details?.remove();
+        return;
+      }
+
+      const json = JSON.stringify(item.result, null, 2);
+      if (!details) {
+        details = document.createElement('details');
+        details.className = 'job-result';
+        details.innerHTML =
+          '<summary>View extraction result</summary><div class="result-panel"><pre></pre></div>';
+        card.appendChild(details);
+      }
+
+      const pre = details.querySelector('pre');
+      if (pre && pre.textContent !== json) {
+        pre.textContent = json;
+      }
+    }
+
+    function buildResultCard(item, previewUrl) {
+      const article = document.createElement('article');
+      article.className = 'job-card';
+      article.dataset.id = item.job_id;
+
+      const badgeClass = item.has_preview ? 'completed' : 'expired';
+      const badgeLabel = item.has_preview ? 'stored' : 'no preview';
+
+      article.innerHTML = `
+        <div class="job-top">
+          <div class="job-body">
+            <div class="thumb-slot"></div>
+            <div class="job-info">
+              <div class="job-name">${escapeHtml(item.name)}</div>
+              <div class="job-meta">${escapeHtml(item.job_id)} · ${formatDate(item.created_at)}</div>
+            </div>
+          </div>
+          <span class="badge ${badgeClass}">${badgeLabel}</span>
+        </div>
+      `;
+
+      const thumbSlot = article.querySelector('.thumb-slot');
+      if (thumbSlot) {
+        if (item.kind === 'image' && previewUrl) {
+          thumbSlot.outerHTML = renderThumbHtml('image', previewUrl, item.name);
+        } else if (item.has_preview && item.kind === 'image' && !previewUrl) {
+          thumbSlot.outerHTML = placeholderThumbHtml('doc');
+        } else {
+          thumbSlot.outerHTML = placeholderThumbHtml(item.kind);
+        }
+      }
+
+      syncResultBlock(article, item);
+      return article;
+    }
+
+    async function loadResults() {
+      const key = apiKeyInput.value.trim();
+      if (!key) {
+        toast('API key is required');
+        return;
+      }
+
+      loadBtn.disabled = true;
+      resultListEl.innerHTML = '<div class="loading">Loading results from R2…</div>';
+      revokeAllPreviews();
+
+      try {
+        const response = await fetch(API_BASE, { headers: authHeaders() });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const message = payload.message || payload.error || `Request failed (${response.status})`;
+          throw new Error(Array.isArray(message) ? message.join(', ') : String(message));
+        }
+
+        const items = payload.items || [];
+        resultCountEl.textContent = `${items.length} shown · ${payload.total ?? items.length} total`;
+
+        if (!items.length) {
+          resultListEl.innerHTML = '<div class="empty">No stored results found in R2.</div>';
+          return;
+        }
+
+        resultListEl.innerHTML = '';
+        for (const item of items) {
+          let previewUrl = null;
+          if (item.has_preview && item.kind === 'image') {
+            previewUrl = await fetchPreviewUrl(item.job_id);
+          }
+          resultListEl.appendChild(buildResultCard(item, previewUrl));
+        }
+      } catch (error) {
+        resultListEl.innerHTML = '<div class="empty">Could not load results.</div>';
+        resultCountEl.textContent = '—';
+        toast(error instanceof Error ? error.message : 'Failed to load results');
+      } finally {
+        loadBtn.disabled = false;
+      }
+    }
+
+    loadBtn.addEventListener('click', loadResults);
+
+    if (apiKeyInput.value.trim()) {
+      loadResults();
+    }
+  </script>
+</body>
+</html>

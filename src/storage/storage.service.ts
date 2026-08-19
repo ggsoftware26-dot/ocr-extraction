@@ -4,11 +4,20 @@ import {
   CreateBucketCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import type { BucketLocationConstraint } from '@aws-sdk/client-s3';
 import { envBoolean, requireEnv } from '../common/env';
+
+export type StoredObject = {
+  key: string;
+  lastModified?: Date;
+  size?: number;
+  contentType?: string;
+};
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -79,6 +88,78 @@ export class StorageService implements OnModuleInit {
     return Buffer.from(bytes);
   }
 
+  async headObject(key: string): Promise<StoredObject | null> {
+    try {
+      const response = await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+        }),
+      );
+      return {
+        key,
+        lastModified: response.LastModified,
+        size: response.ContentLength,
+        contentType: response.ContentType,
+      };
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async listObjects(prefix: string, maxKeys = 1000): Promise<StoredObject[]> {
+    const items: StoredObject[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const response = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          MaxKeys: Math.min(maxKeys - items.length, 1000),
+          ContinuationToken: continuationToken,
+        }),
+      );
+
+      for (const object of response.Contents ?? []) {
+        if (!object.Key) {
+          continue;
+        }
+        items.push({
+          key: object.Key,
+          lastModified: object.LastModified,
+          size: object.Size,
+        });
+        if (items.length >= maxKeys) {
+          return items;
+        }
+      }
+
+      continuationToken = response.IsTruncated
+        ? response.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+
+    return items;
+  }
+
+  uploadPrefix(jobId: string): string {
+    return `uploads/${jobId}/`;
+  }
+
+  async findUploadForJob(jobId: string): Promise<StoredObject | null> {
+    const objects = await this.listObjects(this.uploadPrefix(jobId), 1);
+    return objects[0] ?? null;
+  }
+
+  uploadNameFromKey(key: string): string {
+    const parts = key.split('/');
+    return parts[parts.length - 1] || 'file';
+  }
+
   private async ensureBucket(): Promise<void> {
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
@@ -123,4 +204,19 @@ function isR2Endpoint(value?: string): boolean {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isNotFoundError(error: unknown): boolean {
+  const name =
+    error instanceof Error
+      ? error.name
+      : typeof error === 'object' && error !== null && '$metadata' in error
+        ? String((error as { name?: string }).name ?? '')
+        : '';
+  const status =
+    typeof error === 'object' && error !== null && '$metadata' in error
+      ? (error as { $metadata?: { httpStatusCode?: number } }).$metadata
+          ?.httpStatusCode
+      : undefined;
+  return name === 'NotFound' || name === 'NoSuchKey' || status === 404;
 }
