@@ -7,6 +7,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { ProcessedMessageStore } from '../src/imap/processed-message.store';
+import { MailService } from '../src/mail/mail.service';
 import { WebhooksController } from '../src/webhooks/webhooks.controller';
 import { WebhooksService } from '../src/webhooks/webhooks.service';
 
@@ -22,7 +23,17 @@ describe('Ingest webhook (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true })],
       controllers: [WebhooksController],
-      providers: [WebhooksService, ProcessedMessageStore],
+      providers: [
+        WebhooksService,
+        ProcessedMessageStore,
+        {
+          provide: MailService,
+          useValue: {
+            sendOcrResult: jest.fn().mockResolvedValue(undefined),
+            sendOcrFailure: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+      ],
     })
       .overrideProvider(ProcessedMessageStore)
       .useFactory({

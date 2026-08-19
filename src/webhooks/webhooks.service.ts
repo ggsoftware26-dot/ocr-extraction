@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ExtractionResult } from '../extraction/schema';
 import { ProcessedMessageStore } from '../imap/processed-message.store';
+import { MailService } from '../mail/mail.service';
 
 export type OcrWebhookPayload = {
   job_id: string;
@@ -14,7 +15,10 @@ export type OcrWebhookPayload = {
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
 
-  constructor(private readonly store: ProcessedMessageStore) {}
+  constructor(
+    private readonly store: ProcessedMessageStore,
+    private readonly mail: MailService,
+  ) {}
 
   async handleOcrWebhook(payload: OcrWebhookPayload): Promise<void> {
     const record = await this.store.updateFromWebhook({
@@ -43,11 +47,39 @@ export class WebhooksService {
           `summary="${payload.result.summary}"`,
         ].join(' '),
       );
+
+      try {
+        await this.mail.sendOcrResult({
+          record,
+          result: payload.result,
+          processingTimeMs: payload.processing_time_ms,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Failed to email OCR result for job ${payload.job_id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
       return;
     }
 
     this.logger.error(
       `OCR failed for job ${payload.job_id} (${record.attachmentName}): ${payload.error ?? 'unknown error'}`,
     );
+
+    try {
+      await this.mail.sendOcrFailure({
+        record,
+        error: payload.error ?? 'unknown error',
+        processingTimeMs: payload.processing_time_ms,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to email OCR failure for job ${payload.job_id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 }

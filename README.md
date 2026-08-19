@@ -68,7 +68,7 @@ Optional `webhook_url` receives the same JSON when the job finishes (or finally 
 
 ## IMAP ingest (Gmail and other mailboxes)
 
-The ingest process polls an IMAP mailbox for unseen messages, filters invoice-like emails, submits attachments to the OCR API over HTTP, and logs results when the OCR webhook fires.
+The ingest process polls an IMAP mailbox for unseen messages, filters invoice-like emails, submits attachments to the OCR API over HTTP, and emails the full OCR result back to the same mailbox when processing completes.
 
 ```bash
 # .env — see .env.example for all IMAP_* variables
@@ -80,7 +80,7 @@ Flow:
 1. IMAP poll finds unseen messages matching `IMAP_FILTER_SUBJECT` / `IMAP_FILTER_FROM`
 2. PDF/image attachments are POSTed to `POST /v1/jobs` with `webhook_url=http://localhost:3001/webhooks/ocr`
 3. OCR worker completes and POSTs the result back to ingest
-4. Ingest logs the summary and persists state in `IMAP_PROCESSED_STORE_PATH`
+4. Ingest logs the summary, persists state in `IMAP_PROCESSED_STORE_PATH`, and emails the full JSON result to `INGEST_NOTIFY_EMAIL` (defaults to `IMAP_USER`) via Gmail SMTP
 
 Inspect processed records:
 
