@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>OCR Upload</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --success: #059669;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --queued: #6366f1;
+      --radius: 14px;
+      --shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    .app {
+      max-width: 720px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1rem 1rem calc(1.5rem + var(--safe-bottom));
+      min-width: 0;
+    }
+
+    header {
+      margin-bottom: 1.25rem;
+    }
+
+    header h1 {
+      margin: 0 0 0.25rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1rem;
+      margin-bottom: 1rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: var(--muted);
+    }
+
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      background: #fff;
+    }
+
+    input:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.25);
+      border-color: var(--accent);
+    }
+
+    .dropzone {
+      margin-top: 1rem;
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 1.5rem 1rem;
+      text-align: center;
+      background: #f8fafc;
+      transition: border-color 0.15s, background 0.15s;
+      cursor: pointer;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: #eff6ff;
+    }
+
+    .dropzone strong {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .dropzone span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .file-list {
+      margin-top: 0.75rem;
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .file-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      font-size: 0.9rem;
+    }
+
+    .file-chip-main {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .file-chip span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-chip button {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0.2rem;
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    button.primary {
+      flex: 1;
+      min-width: 140px;
+      border: none;
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    button.primary:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font-size: 0.95rem;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .jobs-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .jobs-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .jobs-header small {
+      color: var(--muted);
+    }
+
+    .job-list {
+      display: grid;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+
+    .job-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.85rem;
+      background: #fff;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .job-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+
+    .job-body {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .job-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .thumb {
+      width: 52px;
+      height: 52px;
+      flex-shrink: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumb-doc {
+      color: #dc2626;
+      background: #fef2f2;
+    }
+
+    .thumb-doc svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    .job-top > div:first-child {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .job-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      word-break: break-word;
+    }
+
+    .job-meta {
+      margin-top: 0.25rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      word-break: break-all;
+    }
+
+    .badge {
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      color: #fff;
+    }
+
+    .badge.queued { background: var(--queued); }
+    .badge.processing { background: var(--warning); }
+    .badge.completed { background: var(--success); }
+    .badge.failed { background: var(--danger); }
+    .badge.uploading { background: #475569; }
+
+    .job-error {
+      margin-top: 0.6rem;
+      padding: 0.55rem 0.65rem;
+      border-radius: 8px;
+      background: #fef2f2;
+      color: #991b1b;
+      font-size: 0.85rem;
+    }
+
+    .job-result {
+      margin-top: 0.65rem;
+      min-width: 0;
+    }
+
+    .job-result summary {
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .result-panel {
+      margin-top: 0.5rem;
+      max-width: 100%;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 8px;
+    }
+
+    .job-result pre {
+      margin: 0;
+      padding: 0.65rem;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 0.72rem;
+      line-height: 1.45;
+      max-height: min(320px, 55vh);
+      max-width: 100%;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 1.5rem 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(1rem + var(--safe-bottom));
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      max-width: calc(100vw - 2rem);
+      z-index: 20;
+    }
+
+    .toast.show { opacity: 0.95; }
+
+    @media (min-width: 640px) {
+      .app { padding-top: 1.5rem; }
+      header h1 { font-size: 1.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>OCR Extraction</h1>
+      <p>Upload documents and track multiple jobs in parallel.</p>
+    </header>
+
+    <section class="card">
+      <label for="apiKey">API key</label>
+      <input id="apiKey" type="password" placeholder="Bearer token or x-api-key value" autocomplete="off" />
+
+      <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Choose files to upload">
+        <strong>Tap or drop files here</strong>
+        <span>PDF or images · multiple files supported</span>
+        <input id="fileInput" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.tif,.tiff,.bmp,image/*,application/pdf" hidden />
+      </div>
+
+      <div id="fileList" class="file-list"></div>
+
+      <div class="actions">
+        <button id="uploadBtn" class="primary" disabled>Upload &amp; extract</button>
+        <button id="clearBtn" class="secondary" type="button">Clear queue</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="jobs-header">
+        <h2>Jobs</h2>
+        <small id="jobCount">0 active</small>
+      </div>
+      <div id="jobList" class="job-list">
+        <div class="empty">No jobs yet. Upload a file to get started.</div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = 'ocr-extraction-api-key';
+    const POLL_MS = 2000;
+    const TERMINAL = new Set(['completed', 'failed']);
+    const API_BASE = '/v1/jobs';
+
+    const apiKeyInput = document.getElementById('apiKey');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const fileListEl = document.getElementById('fileList');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const jobListEl = document.getElementById('jobList');
+    const jobCountEl = document.getElementById('jobCount');
+    const toastEl = document.getElementById('toast');
+
+    let pendingFiles = [];
+    /** @type {Map<string, { id: string, name: string, status: string, kind?: string, previewUrl?: string | null, result?: unknown, error?: string | null, processing_time_ms?: number | null, localStatus?: string }>} */
+    const jobs = new Map();
+    let pollTimer = null;
+
+    apiKeyInput.value = localStorage.getItem(STORAGE_KEY) || '';
+    apiKeyInput.addEventListener('change', () => {
+      localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim());
+    });
+
+    function authHeaders() {
+      const key = apiKeyInput.value.trim();
+      if (!key) throw new Error('API key is required');
+      return {
+        Authorization: `Bearer ${key}`,
+        'X-API-Key': key,
+      };
+    }
+
+    function isPdf(file) {
+      return file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    }
+
+    function isImage(file) {
+      return (
+        file.type.startsWith('image/') ||
+        /\.(jpe?g|png|webp|gif|tiff?|bmp)$/i.test(file.name)
+      );
+    }
+
+    function fileKind(file) {
+      if (isPdf(file)) return 'pdf';
+      if (isImage(file)) return 'image';
+      return 'doc';
+    }
+
+    function pdfIconHtml() {
+      return `<div class="thumb thumb-doc" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <path d="M8 13h8M8 17h5" stroke-linecap="round"></path>
+        </svg>
+      </div>`;
+    }
+
+    function docIconHtml() {
+      return `<div class="thumb thumb-doc" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+      </div>`;
+    }
+
+    function renderThumbHtml(kind, previewUrl, name) {
+      if (kind === 'image' && previewUrl) {
+        return `<div class="thumb"><img src="${previewUrl}" alt="Preview of ${escapeHtml(name)}" loading="lazy" /></div>`;
+      }
+      if (kind === 'pdf') return pdfIconHtml();
+      return docIconHtml();
+    }
+
+    function revokePreviewUrl(url) {
+      if (url) URL.revokeObjectURL(url);
+    }
+
+    function enqueueFile(file) {
+      const kind = fileKind(file);
+      const previewUrl = kind === 'image' ? URL.createObjectURL(file) : null;
+      pendingFiles.push({ file, kind, previewUrl });
+    }
+
+    function clearPendingFiles() {
+      pendingFiles.forEach((entry) => revokePreviewUrl(entry.previewUrl));
+      pendingFiles = [];
+    }
+
+    function toast(message) {
+      toastEl.textContent = message;
+      toastEl.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => toastEl.classList.remove('show'), 2800);
+    }
+
+    function formatMs(ms) {
+      if (ms == null) return '—';
+      if (ms < 1000) return `${ms} ms`;
+      return `${(ms / 1000).toFixed(1)} s`;
+    }
+
+    function renderFiles() {
+      fileListEl.innerHTML = '';
+      pendingFiles.forEach((entry, index) => {
+        const chip = document.createElement('div');
+        chip.className = 'file-chip';
+
+        const main = document.createElement('div');
+        main.className = 'file-chip-main';
+        main.innerHTML = `${renderThumbHtml(entry.kind, entry.previewUrl, entry.file.name)}<span>${escapeHtml(entry.file.name)}</span>`;
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.setAttribute('aria-label', 'Remove file');
+        remove.textContent = '×';
+        remove.onclick = () => {
+          revokePreviewUrl(pendingFiles[index].previewUrl);
+          pendingFiles.splice(index, 1);
+          renderFiles();
+        };
+
+        chip.appendChild(main);
+        chip.appendChild(remove);
+        fileListEl.appendChild(chip);
+      });
+      uploadBtn.disabled = pendingFiles.length === 0;
+    }
+
+    function escapeHtml(value) {
+      return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
+    function badgeClass(status) {
+      return `badge ${status}`;
+    }
+
+    function buildJobCardShell(job) {
+      const status = job.localStatus || job.status;
+      const article = document.createElement('article');
+      article.className = 'job-card';
+      article.dataset.id = job.id;
+      article.innerHTML = `
+        <div class="job-top">
+          <div class="job-body">
+            ${renderThumbHtml(job.kind || 'doc', job.previewUrl, job.name)}
+            <div class="job-info">
+              <div class="job-name">${escapeHtml(job.name)}</div>
+              <div class="job-meta">${escapeHtml(job.id)} · ${formatMs(job.processing_time_ms)}</div>
+            </div>
+          </div>
+          <span class="${badgeClass(status)}">${status}</span>
+        </div>
+      `;
+      syncErrorBlock(article, job);
+      syncResultBlock(article, job);
+      return article;
+    }
+
+    function syncErrorBlock(card, job) {
+      let errorEl = card.querySelector('.job-error');
+      if (!job.error) {
+        errorEl?.remove();
+        return;
+      }
+      if (!errorEl) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'job-error';
+        const resultEl = card.querySelector('.job-result');
+        if (resultEl) {
+          card.insertBefore(errorEl, resultEl);
+        } else {
+          card.appendChild(errorEl);
+        }
+      }
+      errorEl.textContent = job.error;
+    }
+
+    function syncResultBlock(card, job) {
+      let details = card.querySelector('.job-result');
+      if (!job.result) {
+        details?.remove();
+        return;
+      }
+
+      const json = JSON.stringify(job.result, null, 2);
+      if (!details) {
+        details = document.createElement('details');
+        details.className = 'job-result';
+        details.innerHTML =
+          '<summary>View extraction result</summary><div class="result-panel"><pre></pre></div>';
+        card.appendChild(details);
+      }
+
+      const pre = details.querySelector('pre');
+      if (pre && pre.textContent !== json) {
+        const wasOpen = details.open;
+        pre.textContent = json;
+        details.open = wasOpen;
+      }
+    }
+
+    function updateJobCard(card, job) {
+      const status = job.localStatus || job.status;
+      const badge = card.querySelector('.badge');
+      if (badge) {
+        badge.className = badgeClass(status);
+        badge.textContent = status;
+      }
+
+      const meta = card.querySelector('.job-meta');
+      if (meta) {
+        meta.textContent = `${job.id} · ${formatMs(job.processing_time_ms)}`;
+      }
+
+      syncErrorBlock(card, job);
+      syncResultBlock(card, job);
+    }
+
+    function renderJobs() {
+      const items = [...jobs.values()].reverse();
+      const active = items.filter((j) => !TERMINAL.has(j.status)).length;
+      jobCountEl.textContent = `${active} active · ${items.length} total`;
+
+      if (items.length === 0) {
+        jobListEl.innerHTML =
+          '<div class="empty">No jobs yet. Upload a file to get started.</div>';
+        return;
+      }
+
+      jobListEl.querySelector('.empty')?.remove();
+
+      const keepIds = new Set(items.map((job) => job.id));
+
+      jobListEl.querySelectorAll('.job-card').forEach((card) => {
+        if (!keepIds.has(card.dataset.id)) {
+          card.remove();
+        }
+      });
+
+      items.forEach((job) => {
+        let card = jobListEl.querySelector(`[data-id="${job.id}"]`);
+        if (!card) {
+          card = buildJobCardShell(job);
+          jobListEl.appendChild(card);
+          return;
+        }
+        updateJobCard(card, job);
+      });
+
+      items.forEach((job) => {
+        const card = jobListEl.querySelector(`[data-id="${job.id}"]`);
+        if (card) jobListEl.appendChild(card);
+      });
+    }
+
+    function addFiles(files) {
+      const accepted = [...files].filter(Boolean);
+      if (!accepted.length) return;
+      accepted.forEach(enqueueFile);
+      renderFiles();
+    }
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+    fileInput.addEventListener('change', () => {
+      addFiles(fileInput.files);
+      fileInput.value = '';
+    });
+
+    ['dragenter', 'dragover'].forEach((type) => {
+      dropzone.addEventListener(type, (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach((type) => {
+      dropzone.addEventListener(type, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+      });
+    });
+    dropzone.addEventListener('drop', (e) => addFiles(e.dataTransfer.files));
+
+    clearBtn.addEventListener('click', () => {
+      clearPendingFiles();
+      renderFiles();
+    });
+
+    async function createJob(entry) {
+      const { file, kind, previewUrl } = entry;
+      const tempId = crypto.randomUUID();
+      jobs.set(tempId, {
+        id: tempId,
+        name: file.name,
+        kind,
+        previewUrl,
+        status: 'uploading',
+        localStatus: 'uploading',
+        processing_time_ms: null,
+        error: null,
+        result: null,
+      });
+      renderJobs();
+
+      const body = new FormData();
+      body.append('file', file);
+
+      const response = await fetch(API_BASE, {
+        method: 'POST',
+        headers: authHeaders(),
+        body,
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = payload.message || payload.error || `Upload failed (${response.status})`;
+        jobs.set(tempId, {
+          ...jobs.get(tempId),
+          status: 'failed',
+          localStatus: undefined,
+          error: Array.isArray(message) ? message.join(', ') : String(message),
+        });
+        renderJobs();
+        return;
+      }
+
+      jobs.delete(tempId);
+      jobs.set(payload.job_id, {
+        id: payload.job_id,
+        name: file.name,
+        kind,
+        previewUrl,
+        status: payload.status,
+        processing_time_ms: payload.processing_time_ms,
+        error: payload.error,
+        result: payload.result,
+      });
+      renderJobs();
+      schedulePoll();
+    }
+
+    uploadBtn.addEventListener('click', async () => {
+      if (!pendingFiles.length) return;
+
+      try {
+        authHeaders();
+      } catch {
+        toast('Enter your API key first');
+        apiKeyInput.focus();
+        return;
+      }
+
+      const batch = pendingFiles.splice(0);
+      renderFiles();
+      uploadBtn.disabled = true;
+
+      await Promise.allSettled(batch.map((entry) => createJob(entry)));
+      uploadBtn.disabled = pendingFiles.length === 0;
+    });
+
+    async function refreshJob(jobId) {
+      const response = await fetch(`${API_BASE}/${jobId}`, {
+        headers: authHeaders(),
+      });
+      if (response.status === 404) {
+        jobs.delete(jobId);
+        return true;
+      }
+      if (!response.ok) return false;
+
+      const payload = await response.json();
+      const existing = jobs.get(jobId);
+      if (!existing) return false;
+
+      const next = {
+        ...existing,
+        status: payload.status,
+        localStatus: undefined,
+        processing_time_ms: payload.processing_time_ms,
+        error: payload.error,
+        result: payload.result,
+      };
+
+      const changed =
+        next.status !== existing.status ||
+        next.processing_time_ms !== existing.processing_time_ms ||
+        next.error !== existing.error ||
+        next.result !== existing.result;
+
+      if (changed) {
+        jobs.set(jobId, next);
+      }
+
+      return changed;
+    }
+
+    async function pollJobs() {
+      const activeIds = [...jobs.values()]
+        .filter((j) => !TERMINAL.has(j.status) && j.localStatus !== 'uploading')
+        .map((j) => j.id);
+
+      if (!activeIds.length) {
+        stopPoll();
+        return;
+      }
+
+      try {
+        authHeaders();
+      } catch {
+        stopPoll();
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        activeIds.map((id) => refreshJob(id)),
+      );
+      const changed = results.some(
+        (result) => result.status === 'fulfilled' && result.value,
+      );
+      if (changed) {
+        renderJobs();
+      }
+    }
+
+    function schedulePoll() {
+      if (pollTimer) return;
+      pollTimer = setInterval(() => {
+        pollJobs().catch(() => {});
+      }, POLL_MS);
+      pollJobs().catch(() => {});
+    }
+
+    function stopPoll() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+  </script>
+</body>
+</html>
