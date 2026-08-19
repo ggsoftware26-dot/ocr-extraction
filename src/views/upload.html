@@ -640,9 +640,35 @@
       const pre = details.querySelector('pre');
       if (pre && pre.textContent !== json) {
         const wasOpen = details.open;
+        const scrollTop = pre.scrollTop;
         pre.textContent = json;
         details.open = wasOpen;
+        pre.scrollTop = scrollTop;
       }
+    }
+
+    function updateJobCount() {
+      const items = [...jobs.values()];
+      const active = items.filter((j) => !TERMINAL.has(j.status)).length;
+      jobCountEl.textContent = `${active} active · ${items.length} total`;
+
+      if (items.length === 0) {
+        jobListEl.innerHTML =
+          '<div class="empty">No jobs yet. Upload a file to get started.</div>';
+      }
+    }
+
+    function upsertJobCard(job) {
+      jobListEl.querySelector('.empty')?.remove();
+
+      let card = jobListEl.querySelector(`[data-id="${job.id}"]`);
+      if (!card) {
+        card = buildJobCardShell(job);
+        jobListEl.prepend(card);
+        return;
+      }
+
+      updateJobCard(card, job);
     }
 
     function updateJobCard(card, job) {
@@ -662,41 +688,9 @@
       syncResultBlock(card, job);
     }
 
-    function renderJobs() {
-      const items = [...jobs.values()].reverse();
-      const active = items.filter((j) => !TERMINAL.has(j.status)).length;
-      jobCountEl.textContent = `${active} active · ${items.length} total`;
-
-      if (items.length === 0) {
-        jobListEl.innerHTML =
-          '<div class="empty">No jobs yet. Upload a file to get started.</div>';
-        return;
-      }
-
-      jobListEl.querySelector('.empty')?.remove();
-
-      const keepIds = new Set(items.map((job) => job.id));
-
-      jobListEl.querySelectorAll('.job-card').forEach((card) => {
-        if (!keepIds.has(card.dataset.id)) {
-          card.remove();
-        }
-      });
-
-      items.forEach((job) => {
-        let card = jobListEl.querySelector(`[data-id="${job.id}"]`);
-        if (!card) {
-          card = buildJobCardShell(job);
-          jobListEl.appendChild(card);
-          return;
-        }
-        updateJobCard(card, job);
-      });
-
-      items.forEach((job) => {
-        const card = jobListEl.querySelector(`[data-id="${job.id}"]`);
-        if (card) jobListEl.appendChild(card);
-      });
+    function removeJobCard(jobId) {
+      jobListEl.querySelector(`[data-id="${jobId}"]`)?.remove();
+      updateJobCount();
     }
 
     function addFiles(files) {
@@ -751,7 +745,8 @@
         error: null,
         result: null,
       });
-      renderJobs();
+      upsertJobCard(jobs.get(tempId));
+      updateJobCount();
 
       const body = new FormData();
       body.append('file', file);
@@ -771,10 +766,12 @@
           localStatus: undefined,
           error: Array.isArray(message) ? message.join(', ') : String(message),
         });
-        renderJobs();
+        upsertJobCard(jobs.get(tempId));
+        updateJobCount();
         return;
       }
 
+      const card = jobListEl.querySelector(`[data-id="${tempId}"]`);
       jobs.delete(tempId);
       jobs.set(payload.job_id, {
         id: payload.job_id,
@@ -786,7 +783,15 @@
         error: payload.error,
         result: payload.result,
       });
-      renderJobs();
+
+      const saved = jobs.get(payload.job_id);
+      if (card && saved) {
+        card.dataset.id = payload.job_id;
+        updateJobCard(card, saved);
+      } else if (saved) {
+        upsertJobCard(saved);
+      }
+      updateJobCount();
       schedulePoll();
     }
 
@@ -815,6 +820,7 @@
       });
       if (response.status === 404) {
         jobs.delete(jobId);
+        removeJobCard(jobId);
         return true;
       }
       if (!response.ok) return false;
@@ -838,11 +844,15 @@
         next.error !== existing.error ||
         next.result !== existing.result;
 
-      if (changed) {
-        jobs.set(jobId, next);
-      }
+      if (!changed) return false;
 
-      return changed;
+      jobs.set(jobId, next);
+      const card = jobListEl.querySelector(`[data-id="${jobId}"]`);
+      if (card) {
+        updateJobCard(card, next);
+      }
+      updateJobCount();
+      return true;
     }
 
     async function pollJobs() {
@@ -862,15 +872,7 @@
         return;
       }
 
-      const results = await Promise.allSettled(
-        activeIds.map((id) => refreshJob(id)),
-      );
-      const changed = results.some(
-        (result) => result.status === 'fulfilled' && result.value,
-      );
-      if (changed) {
-        renderJobs();
-      }
+      await Promise.allSettled(activeIds.map((id) => refreshJob(id)));
     }
 
     function schedulePoll() {
