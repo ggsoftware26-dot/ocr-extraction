@@ -121,3 +121,4 @@ docker compose -f docker-compose.prod.yml up -d --build
 | S3 / R2 errors | Bucket exists in Cloudflare dashboard |
 | Worker can't reach Gemini | Outbound HTTPS (443) allowed |
 | Upload too large | `MAX_FILE_BYTES` and Caddy `max_size` (default 50 MB) |
+| Ingest `EACCES` on `./data/imap-processed.json` | Rebuild/redeploy — ingest entrypoint fixes volume ownership on start. Manual fix: `docker compose -f docker-compose.prod.yml exec -u root ingest chown -R node:node /app/data` |

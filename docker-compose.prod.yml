@@ -44,6 +44,8 @@ services:
   ingest:
     image: ocr-extraction:latest
     restart: unless-stopped
+    user: root
+    entrypoint: ['/usr/local/bin/ingest-entrypoint.sh']
     command: ['node', 'dist/ingest']
     env_file: .env
     environment:

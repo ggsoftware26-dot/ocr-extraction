@@ -12,7 +12,10 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates su-exec
+
+COPY deploy/docker/ingest-entrypoint.sh /usr/local/bin/ingest-entrypoint.sh
+RUN chmod +x /usr/local/bin/ingest-entrypoint.sh
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev \
