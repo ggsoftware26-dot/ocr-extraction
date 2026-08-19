@@ -21,6 +21,7 @@ export class MailService {
     processingTimeMs: number | null;
   }): Promise<void> {
     if (!this.config.enabled) {
+      this.logger.debug('Email notifications disabled (INGEST_NOTIFY_ENABLED=false)');
       return;
     }
 
@@ -39,6 +40,10 @@ export class MailService {
     };
 
     const json = JSON.stringify(payload, null, 2);
+
+    this.logger.log(
+      `Sending OCR result email for job ${record.ocrJobId} to ${this.config.notifyTo} via ${this.config.host}:${this.config.port}`,
+    );
 
     await this.getTransporter().sendMail({
       from: this.config.user,
@@ -117,6 +122,12 @@ export class MailService {
         auth: {
           user: this.config.user,
           pass: this.config.password,
+        },
+        connectionTimeout: this.config.connectionTimeoutMs,
+        greetingTimeout: this.config.connectionTimeoutMs,
+        socketTimeout: this.config.connectionTimeoutMs,
+        tls: {
+          minVersion: 'TLSv1.2',
         },
       });
     }

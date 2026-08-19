@@ -56,9 +56,11 @@ export class WebhooksService {
         })
         .catch((error) => {
           this.logger.error(
-            `Failed to email OCR result for job ${payload.job_id}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            [
+              `Failed to email OCR result for job ${payload.job_id}:`,
+              error instanceof Error ? error.message : String(error),
+              `(SMTP ${process.env.SMTP_HOST ?? 'smtp.gmail.com'}:${process.env.SMTP_PORT ?? '465'} — if Connection timeout, try SMTP_PORT=465 SMTP_SECURE=true or check VPS outbound SMTP)`,
+            ].join(' '),
           );
         });
       return;

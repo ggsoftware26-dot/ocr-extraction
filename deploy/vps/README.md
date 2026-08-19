@@ -122,3 +122,4 @@ docker compose -f docker-compose.prod.yml up -d --build
 | Worker can't reach Gemini | Outbound HTTPS (443) allowed |
 | Upload too large | `MAX_FILE_BYTES` and Caddy `max_size` (default 50 MB) |
 | Ingest `EACCES` on `./data/imap-processed.json` | Rebuild/redeploy — ingest entrypoint fixes volume ownership on start. Manual fix: `docker compose -f docker-compose.prod.yml exec -u root ingest chown -R node:node /app/data` |
+| Ingest email `Connection timeout` | VPS often blocks SMTP port 587. Set `SMTP_PORT=465` and `SMTP_SECURE=true` in `.env`, redeploy ingest. Test: `docker compose -f docker-compose.prod.yml exec ingest nc -zv smtp.gmail.com 465` |
