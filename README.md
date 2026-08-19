@@ -33,6 +33,8 @@ Optional: run the IMAP ingest service (polls mailbox → OCR API → webhook):
 npm run start:ingest:dev
 ```
 
+Set `IMAP_ENABLED=false` to run ingest webhooks only (no mailbox polling).
+
 - API: http://localhost:3000
 - MinIO console: http://localhost:9001 (`minioadmin` / `minioadmin`)
 

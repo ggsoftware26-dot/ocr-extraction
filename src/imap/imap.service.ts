@@ -28,6 +28,10 @@ export class ImapService implements OnApplicationShutdown {
   }
 
   start(): void {
+    if (!this.config.enabled) {
+      this.logger.log('IMAP ingestion disabled (IMAP_ENABLED=false)');
+      return;
+    }
     if (this.running) {
       return;
     }
