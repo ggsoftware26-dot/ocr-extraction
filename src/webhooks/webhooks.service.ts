@@ -48,19 +48,19 @@ export class WebhooksService {
         ].join(' '),
       );
 
-      try {
-        await this.mail.sendOcrResult({
+      void this.mail
+        .sendOcrResult({
           record,
           result: payload.result,
           processingTimeMs: payload.processing_time_ms,
+        })
+        .catch((error) => {
+          this.logger.error(
+            `Failed to email OCR result for job ${payload.job_id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
         });
-      } catch (error) {
-        this.logger.error(
-          `Failed to email OCR result for job ${payload.job_id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      }
       return;
     }
 
@@ -68,18 +68,18 @@ export class WebhooksService {
       `OCR failed for job ${payload.job_id} (${record.attachmentName}): ${payload.error ?? 'unknown error'}`,
     );
 
-    try {
-      await this.mail.sendOcrFailure({
+    void this.mail
+      .sendOcrFailure({
         record,
         error: payload.error ?? 'unknown error',
         processingTimeMs: payload.processing_time_ms,
+      })
+      .catch((error) => {
+        this.logger.error(
+          `Failed to email OCR failure for job ${payload.job_id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
       });
-    } catch (error) {
-      this.logger.error(
-        `Failed to email OCR failure for job ${payload.job_id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
   }
 }
