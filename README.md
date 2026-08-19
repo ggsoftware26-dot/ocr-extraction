@@ -14,7 +14,7 @@ HTTP stays fast: upload stores the file and enqueues a job. Workers talk to Gemi
 
 ```bash
 cp .env.example .env
-# set GEMINI_API_KEY in .env
+# set API_KEY and GEMINI_API_KEY in .env
 
 docker compose up -d
 npm install
@@ -36,6 +36,7 @@ npm run start:worker:dev
 
 ```bash
 curl -X POST http://localhost:3000/v1/jobs \
+  -H "Authorization: Bearer $API_KEY" \
   -F "file=@./sample.pdf" \
   -F "webhook_url=https://example.com/ocr-hook"
 ```
@@ -49,7 +50,8 @@ Response:
 **Poll**
 
 ```bash
-curl http://localhost:3000/v1/jobs/<job_id>
+curl http://localhost:3000/v1/jobs/<job_id> \
+  -H "Authorization: Bearer $API_KEY"
 ```
 
 Statuses: `queued` | `processing` | `completed` | `failed`.

@@ -8,17 +8,20 @@ import {
   PayloadTooLargeException,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { memoryStorage } from 'multer';
+import { ApiKeyGuard } from '../common/api-key.guard';
 import { MAX_FILE_BYTES_DEFAULT } from '../common/constants';
 import { envNumber } from '../common/env';
 import { CreateJobDto } from './dto/create-job.dto';
 import { JobsService } from './jobs.service';
 
 @Controller('v1/jobs')
+@UseGuards(ApiKeyGuard)
 export class JobsController {
   constructor(
     private readonly jobs: JobsService,
