@@ -20,8 +20,10 @@ export class StorageService implements OnModuleInit {
 
   constructor(private readonly config: ConfigService) {
     this.bucket = requireEnv(config, 'S3_BUCKET');
-    this.region = this.config.get<string>('S3_REGION') ?? 'us-east-1';
-    const endpoint = this.config.get<string>('S3_ENDPOINT') || undefined;
+    const configuredRegion = this.config.get<string>('S3_REGION') ?? 'us-east-1';
+    // Cloudflare R2 accepts "auto" in docs; AWS SDK needs a concrete region for signing.
+    this.region = configuredRegion === 'auto' ? 'us-east-1' : configuredRegion;
+    const endpoint = normalizeEndpoint(this.config.get<string>('S3_ENDPOINT'));
     const accessKeyId = this.config.get<string>('S3_ACCESS_KEY');
     const secretAccessKey = this.config.get<string>('S3_SECRET_KEY');
 
@@ -80,10 +82,17 @@ export class StorageService implements OnModuleInit {
   private async ensureBucket(): Promise<void> {
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
-    } catch {
+      return;
+    } catch (error) {
+      if (isR2Endpoint(this.config.get<string>('S3_ENDPOINT'))) {
+        this.logger.warn(
+          `R2 bucket "${this.bucket}" not verified at startup — create it in Cloudflare if missing: ${errorMessage(error)}`,
+        );
+        return;
+      }
+
       this.logger.log(`Creating bucket ${this.bucket}`);
-      const needsLocation =
-        this.region !== 'us-east-1' && this.region !== 'auto';
+      const needsLocation = this.region !== 'us-east-1';
       await this.client.send(
         new CreateBucketCommand({
           Bucket: this.bucket,
@@ -98,4 +107,20 @@ export class StorageService implements OnModuleInit {
       );
     }
   }
+}
+
+function normalizeEndpoint(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  return trimmed.replace(/\/+$/, '');
+}
+
+function isR2Endpoint(value?: string): boolean {
+  return (value ?? '').includes('r2.cloudflarestorage.com');
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

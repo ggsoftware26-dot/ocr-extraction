@@ -117,6 +117,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 | Symptom | Fix |
 | --- | --- |
 | Caddy won't get certificate | `DOMAIN` DNS → this server; ports 80/443 open |
-| S3 / R2 errors | Bucket exists; S3 keys (not `cfat_` token); endpoint uses account ID |
+| S3 / R2 SSL / worker restart loop | `S3_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com` (no bucket path, no trailing slash); `S3_REGION=us-east-1`; use R2 **Access Key** + **Secret** (not `cfat_` token) |
+| S3 / R2 errors | Bucket exists in Cloudflare dashboard |
 | Worker can't reach Gemini | Outbound HTTPS (443) allowed |
 | Upload too large | `MAX_FILE_BYTES` and Caddy `max_size` (default 50 MB) |
