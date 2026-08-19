@@ -64,6 +64,15 @@ Optional `webhook_url` receives the same JSON when the job finishes (or finally 
 curl http://localhost:3000/health
 ```
 
+## Production (VPS + Cloudflare R2, ~$6–12/mo)
+
+Single VPS (DigitalOcean, Hetzner, etc.) with Docker Compose (API + worker + Redis + Caddy) and R2 for file storage. See `deploy/vps/README.md`.
+
+```bash
+cp deploy/vps/.env.example .env
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
 ## Scale
 
 - Scale the API process horizontally (stateless).

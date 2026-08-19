@@ -7,6 +7,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import type { BucketLocationConstraint } from '@aws-sdk/client-s3';
 import { envBoolean, requireEnv } from '../common/env';
 
 @Injectable()
@@ -15,16 +16,22 @@ export class StorageService implements OnModuleInit {
   private readonly client: S3Client;
   private readonly bucket: string;
 
+  private readonly region: string;
+
   constructor(private readonly config: ConfigService) {
     this.bucket = requireEnv(config, 'S3_BUCKET');
+    this.region = this.config.get<string>('S3_REGION') ?? 'us-east-1';
+    const endpoint = this.config.get<string>('S3_ENDPOINT') || undefined;
+    const accessKeyId = this.config.get<string>('S3_ACCESS_KEY');
+    const secretAccessKey = this.config.get<string>('S3_SECRET_KEY');
+
     this.client = new S3Client({
-      region: this.config.get<string>('S3_REGION') ?? 'us-east-1',
-      endpoint: this.config.get<string>('S3_ENDPOINT'),
+      region: this.region,
+      ...(endpoint ? { endpoint } : {}),
       forcePathStyle: envBoolean(this.config, 'S3_FORCE_PATH_STYLE', true),
-      credentials: {
-        accessKeyId: requireEnv(this.config, 'S3_ACCESS_KEY'),
-        secretAccessKey: requireEnv(this.config, 'S3_SECRET_KEY'),
-      },
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey } }
+        : {}),
     });
   }
 
@@ -75,7 +82,20 @@ export class StorageService implements OnModuleInit {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
     } catch {
       this.logger.log(`Creating bucket ${this.bucket}`);
-      await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+      const needsLocation =
+        this.region !== 'us-east-1' && this.region !== 'auto';
+      await this.client.send(
+        new CreateBucketCommand({
+          Bucket: this.bucket,
+          ...(needsLocation
+            ? {
+                CreateBucketConfiguration: {
+                  LocationConstraint: this.region as BucketLocationConstraint,
+                },
+              }
+            : {}),
+        }),
+      );
     }
   }
 }

@@ -1,0 +1,8 @@
+{$DOMAIN} {
+	reverse_proxy api:3000
+
+	# Matches MAX_FILE_BYTES default (50 MB).
+	request_body {
+		max_size 52428800
+	}
+}

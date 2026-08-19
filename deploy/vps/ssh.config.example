@@ -1,0 +1,13 @@
+# Copy and set your Droplet IP + absolute path to the private key:
+#   cp deploy/vps/ssh.config.example deploy/vps/ssh.config
+#
+# macOS OpenSSH resolves IdentityFile from $HOME, not the config file — use an absolute path.
+#
+# Connect:
+#   chmod 600 keys/digital-ocean-ggsoftware26
+#   ssh -F deploy/vps/ssh.config ocr-droplet
+
+Host ocr-droplet
+  HostName YOUR_DROPLET_IP
+  User root
+  IdentityFile /absolute/path/to/ocr-extraction/keys/digital-ocean-ggsoftware26

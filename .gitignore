@@ -37,8 +37,12 @@ lerna-debug.log*
 .env
 .env.local
 .env.*.local
+.gitconfig
 
 # temp
 tmp
 temp
 uploads
+samples
+keys
+deploy/vps/ssh.config
