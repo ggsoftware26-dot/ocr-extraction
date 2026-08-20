@@ -15,6 +15,7 @@ export class ImapService implements OnApplicationShutdown {
   private readonly logger = new Logger(ImapService.name);
   private readonly config: ImapConfig;
   private running = false;
+  private polling = false;
   private pollTimer: NodeJS.Timeout | null = null;
 
   constructor(
@@ -58,9 +59,10 @@ export class ImapService implements OnApplicationShutdown {
   }
 
   async pollOnce(): Promise<void> {
-    if (!this.running) {
+    if (!this.running || this.polling) {
       return;
     }
+    this.polling = true;
 
     const client = new ImapFlow({
       host: this.config.host,
@@ -71,6 +73,15 @@ export class ImapService implements OnApplicationShutdown {
         pass: this.config.password,
       },
       logger: false,
+    });
+
+    // Without a listener, ImapFlow 'error' events crash the Node process.
+    client.on('error', (error: Error) => {
+      this.logger.warn(
+        `IMAP connection error: ${error.message}${
+          'code' in error && error.code ? ` (${String(error.code)})` : ''
+        }`,
+      );
     });
 
     try {
@@ -92,11 +103,25 @@ export class ImapService implements OnApplicationShutdown {
         lock.release();
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const code =
+        error instanceof Error && 'code' in error
+          ? String((error as Error & { code?: unknown }).code ?? '')
+          : '';
       this.logger.error(
-        `IMAP poll failed: ${error instanceof Error ? error.message : String(error)}`,
+        `IMAP poll failed: ${message}${code ? ` (${code})` : ''}`,
       );
     } finally {
-      await client.logout().catch(() => undefined);
+      try {
+        if (client.usable) {
+          await client.logout();
+        } else {
+          client.close();
+        }
+      } catch {
+        // Connection already gone; ignore cleanup errors.
+      }
+      this.polling = false;
     }
   }
 
