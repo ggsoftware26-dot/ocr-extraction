@@ -8,7 +8,15 @@ export type ImapConfig = {
   user: string;
   password: string;
   mailbox: string;
-  pollIntervalMs: number;
+  /** Initial delay before reconnecting after a dropped session. */
+  reconnectDelayMs: number;
+  /** Max IDLE wait before refreshing (Gmail caps ~29m). */
+  maxIdleMs: number;
+  /**
+   * Only process unseen mail with INTERNALDATE on/after this many days ago.
+   * 0 = no date filter (all unseen).
+   */
+  sinceDays: number;
   markSeen: boolean;
   filterSubject: string[];
   filterFrom: string | null;
@@ -17,6 +25,11 @@ export type ImapConfig = {
   ocrApiUrl: string;
   ocrApiKey: string;
 };
+
+function normalizePassword(raw: string): string {
+  // Google App Passwords are often copied with spaces: "xxxx xxxx xxxx xxxx"
+  return raw.replace(/\s+/g, '');
+}
 
 export function loadImapConfig(config: ConfigService): ImapConfig {
   const enabled = envBoolean(config, 'IMAP_ENABLED', true);
@@ -30,6 +43,10 @@ export function loadImapConfig(config: ConfigService): ImapConfig {
     ingestPublicUrl:
       config.get<string>('INGEST_PUBLIC_URL') || 'http://localhost:3001',
     ocrApiUrl: config.get<string>('OCR_API_URL') || 'http://localhost:3000',
+    reconnectDelayMs: envNumber(config, 'IMAP_RECONNECT_DELAY_MS', 30_000),
+    // Short IDLE refresh: Gmail often does not push EXISTS reliably.
+    maxIdleMs: envNumber(config, 'IMAP_MAX_IDLE_MS', 60_000),
+    sinceDays: envNumber(config, 'IMAP_SINCE_DAYS', 7),
   };
 
   if (!enabled) {
@@ -40,7 +57,6 @@ export function loadImapConfig(config: ConfigService): ImapConfig {
       user: '',
       password: '',
       mailbox: config.get<string>('IMAP_MAILBOX') || 'INBOX',
-      pollIntervalMs: envNumber(config, 'IMAP_POLL_INTERVAL_MS', 60_000),
       markSeen: envBoolean(config, 'IMAP_MARK_SEEN', true),
       filterSubject: [],
       filterFrom: null,
@@ -53,9 +69,8 @@ export function loadImapConfig(config: ConfigService): ImapConfig {
     host: requireEnv(config, 'IMAP_HOST'),
     port: envNumber(config, 'IMAP_PORT', 993),
     user: requireEnv(config, 'IMAP_USER'),
-    password: requireEnv(config, 'IMAP_PASSWORD'),
+    password: normalizePassword(requireEnv(config, 'IMAP_PASSWORD')),
     mailbox: config.get<string>('IMAP_MAILBOX') || 'INBOX',
-    pollIntervalMs: envNumber(config, 'IMAP_POLL_INTERVAL_MS', 60_000),
     markSeen: envBoolean(config, 'IMAP_MARK_SEEN', true),
     filterSubject: filterSubjectRaw
       .split(',')
