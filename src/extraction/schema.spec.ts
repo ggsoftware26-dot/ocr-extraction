@@ -1,6 +1,7 @@
 import {
   mergeExtractionResults,
   parseExtractionResult,
+  parseStoredExtractionDocument,
   toGlobalPage,
 } from './schema';
 
@@ -87,5 +88,49 @@ describe('extraction schema', () => {
 
     expect(result.fields[0].value).toBe('המרכז הבריאותי ד.ע בע\u05F4מ');
     expect(JSON.stringify(result.fields[0])).not.toContain('\\"');
+  });
+
+  it('parses stored documents with meta and ignores unknown meta on result parse', () => {
+    const parsed = parseStoredExtractionDocument({
+      document_type: 'invoice',
+      summary: 'A doc',
+      fields: [],
+      tables: [],
+      meta: {
+        processing_time_ms: 1200,
+        model: 'gemini-2.5-flash',
+        usage: {
+          prompt_tokens: 100,
+          candidates_tokens: 20,
+          thoughts_tokens: 5,
+          total_tokens: 125,
+        },
+        cost_usd: 0.00008,
+        pricing: {
+          currency: 'USD',
+          input_per_1m_usd: 0.3,
+          output_per_1m_usd: 2.5,
+          note: 'estimate',
+        },
+      },
+    });
+
+    expect(parsed.result.document_type).toBe('invoice');
+    expect(parsed.meta).toMatchObject({
+      processing_time_ms: 1200,
+      model: 'gemini-2.5-flash',
+      usage: { total_tokens: 125 },
+      cost_usd: 0.00008,
+    });
+  });
+
+  it('returns null meta for legacy stored documents', () => {
+    const parsed = parseStoredExtractionDocument({
+      document_type: 'invoice',
+      summary: 'legacy',
+      fields: [],
+      tables: [],
+    });
+    expect(parsed.meta).toBeNull();
   });
 });

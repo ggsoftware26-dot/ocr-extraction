@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { PDFDocument } from 'pdf-lib';
+import type { OcrExtractOutput, OcrInput } from '../providers/ocr-provider';
 import { ExtractionService } from './extraction.service';
 import type { ExtractionResult } from './schema';
 
@@ -20,6 +21,19 @@ function emptyResult(): ExtractionResult {
   };
 }
 
+function emptyOutcome(): OcrExtractOutput {
+  return {
+    result: emptyResult(),
+    model: 'gemini-2.5-flash',
+    usage: {
+      prompt_tokens: 10,
+      candidates_tokens: 5,
+      thoughts_tokens: 0,
+      total_tokens: 15,
+    },
+  };
+}
+
 describe('ExtractionService', () => {
   const config = {
     get: (key: string) => {
@@ -33,11 +47,13 @@ describe('ExtractionService', () => {
   } as unknown as ConfigService;
 
   it('sends small PDFs in one provider call', async () => {
-    const extract = jest.fn(() => Promise.resolve(emptyResult()));
+    const extract = jest.fn<Promise<OcrExtractOutput>, [OcrInput]>(() =>
+      Promise.resolve(emptyOutcome()),
+    );
     const service = new ExtractionService({ extract }, config);
     const bytes = await makePdf(3);
 
-    await service.extract(bytes, 'application/pdf');
+    const outcome = await service.extract(bytes, 'application/pdf');
 
     expect(extract).toHaveBeenCalledTimes(1);
     expect(extract.mock.calls[0][0]).toMatchObject({
@@ -45,14 +61,17 @@ describe('ExtractionService', () => {
       pageStart: 1,
       pageCount: 3,
     });
+    expect(outcome.usage.total_tokens).toBe(15);
   });
 
-  it('splits large PDFs into page batches', async () => {
-    const extract = jest.fn(() => Promise.resolve(emptyResult()));
+  it('splits large PDFs into page batches and aggregates usage', async () => {
+    const extract = jest.fn<Promise<OcrExtractOutput>, [OcrInput]>(() =>
+      Promise.resolve(emptyOutcome()),
+    );
     const service = new ExtractionService({ extract }, config);
     const bytes = await makePdf(20);
 
-    await service.extract(bytes, 'application/pdf');
+    const outcome = await service.extract(bytes, 'application/pdf');
 
     expect(extract).toHaveBeenCalledTimes(2);
     expect(extract.mock.calls[0][0]).toMatchObject({
@@ -62,6 +81,12 @@ describe('ExtractionService', () => {
     expect(extract.mock.calls[1][0]).toMatchObject({
       pageStart: 11,
       pageCount: 10,
+    });
+    expect(outcome.usage).toEqual({
+      prompt_tokens: 20,
+      candidates_tokens: 10,
+      thoughts_tokens: 0,
+      total_tokens: 30,
     });
   });
 });

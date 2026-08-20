@@ -457,7 +457,7 @@
     const toastEl = document.getElementById('toast');
 
     let pendingFiles = [];
-    /** @type {Map<string, { id: string, name: string, status: string, kind?: string, previewUrl?: string | null, result?: unknown, error?: string | null, processing_time_ms?: number | null, localStatus?: string }>} */
+    /** @type {Map<string, { id: string, name: string, status: string, kind?: string, previewUrl?: string | null, result?: unknown, error?: string | null, processing_time_ms?: number | null, model?: string | null, usage?: { prompt_tokens: number, candidates_tokens: number, thoughts_tokens: number, total_tokens: number } | null, cost_usd?: number | null, pricing?: unknown, localStatus?: string }>} */
     const jobs = new Map();
     let pollTimer = null;
 
@@ -465,7 +465,7 @@
     apiKeyInput.addEventListener('change', () => {
       localStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim());
     });
-
+    
     function authHeaders() {
       const key = apiKeyInput.value.trim();
       if (!key) throw new Error('API key is required');
@@ -542,9 +542,27 @@
     }
 
     function formatMs(ms) {
-      if (ms == null) return '—';
-      if (ms < 1000) return `${ms} ms`;
-      return `${(ms / 1000).toFixed(1)} s`;
+      if (ms == null || !Number.isFinite(ms)) return null;
+      if (ms < 1000) return `${Math.round(ms)}ms`;
+      return `${(ms / 1000).toFixed(1)}s`;
+    }
+
+    function formatUsd(value) {
+      if (value == null || !Number.isFinite(value)) return null;
+      if (value < 0.01) return `$${value.toFixed(6)}`;
+      return `$${value.toFixed(4)}`;
+    }
+
+    function formatJobMetaLine(job) {
+      const parts = [job.id];
+      const duration = formatMs(job.processing_time_ms);
+      if (duration) parts.push(duration);
+      if (job.usage?.total_tokens != null) {
+        parts.push(`${job.usage.total_tokens.toLocaleString()} tokens`);
+      }
+      const cost = formatUsd(job.cost_usd);
+      if (cost) parts.push(`~${cost}`);
+      return parts.join(' · ');
     }
 
     function renderFiles() {
@@ -597,7 +615,7 @@
             ${renderThumbHtml(job.kind || 'doc', job.previewUrl, job.name)}
             <div class="job-info">
               <div class="job-name">${escapeHtml(job.name)}</div>
-              <div class="job-meta">${escapeHtml(job.id)} · ${formatMs(job.processing_time_ms)}</div>
+              <div class="job-meta">${escapeHtml(formatJobMetaLine(job))}</div>
             </div>
           </div>
           <span class="${badgeClass(status)}">${status}</span>
@@ -634,7 +652,20 @@
         return;
       }
 
-      const json = JSON.stringify(job.result, null, 2);
+      const display =
+        job.processing_time_ms != null || job.usage
+          ? {
+              ...job.result,
+              meta: {
+                processing_time_ms: job.processing_time_ms,
+                model: job.model,
+                usage: job.usage,
+                cost_usd: job.cost_usd,
+                pricing: job.pricing,
+              },
+            }
+          : job.result;
+      const json = JSON.stringify(display, null, 2);
       if (!details) {
         details = document.createElement('details');
         details.className = 'job-result';
@@ -687,7 +718,7 @@
 
       const meta = card.querySelector('.job-meta');
       if (meta) {
-        meta.textContent = `${job.id} · ${formatMs(job.processing_time_ms)}`;
+        meta.textContent = formatJobMetaLine(job);
       }
 
       syncErrorBlock(card, job);
@@ -748,6 +779,10 @@
         status: 'uploading',
         localStatus: 'uploading',
         processing_time_ms: null,
+        model: null,
+        usage: null,
+        cost_usd: null,
+        pricing: null,
         error: null,
         result: null,
       });
@@ -786,6 +821,10 @@
         previewUrl,
         status: payload.status,
         processing_time_ms: payload.processing_time_ms,
+        model: payload.model ?? null,
+        usage: payload.usage ?? null,
+        cost_usd: payload.cost_usd ?? null,
+        pricing: payload.pricing ?? null,
         error: payload.error,
         result: payload.result,
       });
@@ -840,6 +879,10 @@
         status: payload.status,
         localStatus: undefined,
         processing_time_ms: payload.processing_time_ms,
+        model: payload.model ?? null,
+        usage: payload.usage ?? null,
+        cost_usd: payload.cost_usd ?? null,
+        pricing: payload.pricing ?? null,
         error: payload.error,
         result: payload.result,
       };
@@ -847,6 +890,8 @@
       const changed =
         next.status !== existing.status ||
         next.processing_time_ms !== existing.processing_time_ms ||
+        next.cost_usd !== existing.cost_usd ||
+        next.usage?.total_tokens !== existing.usage?.total_tokens ||
         next.error !== existing.error ||
         next.result !== existing.result;
 

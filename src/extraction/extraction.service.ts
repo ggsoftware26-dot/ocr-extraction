@@ -1,9 +1,21 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { envNumber } from '../common/env';
-import { OCR_PROVIDER, type OcrProvider } from '../providers/ocr-provider';
+import {
+  OCR_PROVIDER,
+  mergeTokenUsage,
+  type OcrExtractOutput,
+  type OcrProvider,
+  type TokenUsage,
+} from '../providers/ocr-provider';
 import { mergeExtractionResults, type ExtractionResult } from './schema';
 import { countPdfPages, mapPool, splitPdfIntoBatches } from './pdf.util';
+
+export type ExtractionOutcome = {
+  result: ExtractionResult;
+  model: string;
+  usage: TokenUsage;
+};
 
 @Injectable()
 export class ExtractionService {
@@ -21,7 +33,7 @@ export class ExtractionService {
     this.batchConcurrency = envNumber(config, 'PDF_BATCH_CONCURRENCY', 2);
   }
 
-  async extract(bytes: Buffer, mimeType: string): Promise<ExtractionResult> {
+  async extract(bytes: Buffer, mimeType: string): Promise<ExtractionOutcome> {
     if (mimeType === 'application/pdf') {
       return this.extractPdf(bytes);
     }
@@ -34,7 +46,7 @@ export class ExtractionService {
     });
   }
 
-  private async extractPdf(bytes: Buffer): Promise<ExtractionResult> {
+  private async extractPdf(bytes: Buffer): Promise<ExtractionOutcome> {
     const pageCount = await countPdfPages(bytes);
     this.logger.log(`PDF has ${pageCount} page(s)`);
 
@@ -61,6 +73,14 @@ export class ExtractionService {
       }),
     );
 
-    return mergeExtractionResults(parts);
+    return mergeOutcomes(parts);
   }
+}
+
+function mergeOutcomes(parts: OcrExtractOutput[]): ExtractionOutcome {
+  return {
+    result: mergeExtractionResults(parts.map((part) => part.result)),
+    model: parts[0]?.model ?? 'unknown',
+    usage: mergeTokenUsage(parts.map((part) => part.usage)),
+  };
 }

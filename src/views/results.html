@@ -402,6 +402,30 @@
       return date.toLocaleString();
     }
 
+    function formatMs(ms) {
+      if (ms == null || !Number.isFinite(ms)) return null;
+      if (ms < 1000) return `${Math.round(ms)}ms`;
+      return `${(ms / 1000).toFixed(1)}s`;
+    }
+
+    function formatUsd(value) {
+      if (value == null || !Number.isFinite(value)) return null;
+      if (value < 0.01) return `$${value.toFixed(6)}`;
+      return `$${value.toFixed(4)}`;
+    }
+
+    function formatJobMetaLine(item) {
+      const parts = [item.job_id, formatDate(item.created_at)];
+      const duration = formatMs(item.processing_time_ms);
+      if (duration) parts.push(duration);
+      if (item.usage?.total_tokens != null) {
+        parts.push(`${item.usage.total_tokens.toLocaleString()} tokens`);
+      }
+      const cost = formatUsd(item.cost_usd);
+      if (cost) parts.push(`~${cost}`);
+      return parts.join(' · ');
+    }
+
     function pdfIconHtml() {
       return `<div class="thumb thumb-pdf" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -460,7 +484,20 @@
         return;
       }
 
-      const json = JSON.stringify(item.result, null, 2);
+      const display =
+        item.processing_time_ms != null || item.usage
+          ? {
+              ...item.result,
+              meta: {
+                processing_time_ms: item.processing_time_ms,
+                model: item.model,
+                usage: item.usage,
+                cost_usd: item.cost_usd,
+                pricing: item.pricing,
+              },
+            }
+          : item.result;
+      const json = JSON.stringify(display, null, 2);
       if (!details) {
         details = document.createElement('details');
         details.className = 'job-result';
@@ -489,7 +526,7 @@
             <div class="thumb-slot"></div>
             <div class="job-info">
               <div class="job-name">${escapeHtml(item.name)}</div>
-              <div class="job-meta">${escapeHtml(item.job_id)} · ${formatDate(item.created_at)}</div>
+              <div class="job-meta">${escapeHtml(formatJobMetaLine(item))}</div>
             </div>
           </div>
           <span class="badge ${badgeClass}">${badgeLabel}</span>

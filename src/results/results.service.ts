@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
-  parseExtractionResult,
+  parseStoredExtractionDocument,
+  type ExtractionMeta,
   type ExtractionResult,
 } from '../extraction/schema';
 import { StorageService } from '../storage/storage.service';
@@ -15,7 +16,11 @@ export type StoredResultView = {
   status: 'completed';
   result: ExtractionResult;
   created_at: string;
-  processing_time_ms: null;
+  processing_time_ms: number | null;
+  model: string | null;
+  usage: ExtractionMeta['usage'] | null;
+  cost_usd: number | null;
+  pricing: ExtractionMeta['pricing'] | null;
   error: null;
 };
 
@@ -97,7 +102,9 @@ export class ResultsService {
   ): Promise<StoredResultView | null> {
     try {
       const raw = await this.storage.getObject(resultObject.key);
-      const result = parseExtractionResult(JSON.parse(raw.toString('utf8')));
+      const { result, meta } = parseStoredExtractionDocument(
+        JSON.parse(raw.toString('utf8')),
+      );
       const name = upload
         ? this.storage.uploadNameFromKey(upload.key)
         : `${jobId}.json`;
@@ -112,7 +119,11 @@ export class ResultsService {
         created_at: (
           resultObject.lastModified ?? new Date(0)
         ).toISOString(),
-        processing_time_ms: null,
+        processing_time_ms: meta?.processing_time_ms ?? null,
+        model: meta?.model ?? null,
+        usage: meta?.usage ?? null,
+        cost_usd: meta?.cost_usd ?? null,
+        pricing: meta?.pricing ?? null,
         error: null,
       };
     } catch {

@@ -7,9 +7,14 @@ import {
   buildExtractionPrompt,
   parseExtractionResult,
   toGlobalPage,
-  type ExtractionResult,
 } from '../extraction/schema';
-import type { OcrInput, OcrProvider } from './ocr-provider';
+import type {
+  OcrExtractOutput,
+  OcrInput,
+  OcrProvider,
+  TokenUsage,
+} from './ocr-provider';
+import { emptyTokenUsage } from './ocr-provider';
 
 const geminiResponseSchema = {
   type: Type.OBJECT,
@@ -72,7 +77,7 @@ export class GeminiProvider implements OcrProvider {
     this.timeoutMs = envNumber(config, 'EXTRACT_TIMEOUT_MS', 60_000);
   }
 
-  async extract(input: OcrInput): Promise<ExtractionResult> {
+  async extract(input: OcrInput): Promise<OcrExtractOutput> {
     try {
       return await this.callModel(input);
     } catch (error) {
@@ -83,7 +88,7 @@ export class GeminiProvider implements OcrProvider {
     }
   }
 
-  private async callModel(input: OcrInput): Promise<ExtractionResult> {
+  private async callModel(input: OcrInput): Promise<OcrExtractOutput> {
     const prompt = buildExtractionPrompt(input.pageStart, input.pageCount);
     const response = await this.client.models.generateContent({
       model: this.model,
@@ -115,17 +120,42 @@ export class GeminiProvider implements OcrProvider {
 
     const parsed = parseExtractionResult(parseJson(text));
     return {
-      ...parsed,
-      fields: parsed.fields.map((field) => ({
-        ...field,
-        page: toGlobalPage(field.page, input.pageStart),
-      })),
-      tables: parsed.tables.map((table) => ({
-        ...table,
-        page: toGlobalPage(table.page, input.pageStart),
-      })),
+      model: this.model,
+      usage: readUsage(response.usageMetadata),
+      result: {
+        ...parsed,
+        fields: parsed.fields.map((field) => ({
+          ...field,
+          page: toGlobalPage(field.page, input.pageStart),
+        })),
+        tables: parsed.tables.map((table) => ({
+          ...table,
+          page: toGlobalPage(table.page, input.pageStart),
+        })),
+      },
     };
   }
+}
+
+function readUsage(metadata: unknown): TokenUsage {
+  if (!metadata || typeof metadata !== 'object') {
+    return emptyTokenUsage();
+  }
+  const raw = metadata as Record<string, unknown>;
+  return {
+    prompt_tokens: asNonNegInt(raw.promptTokenCount),
+    candidates_tokens: asNonNegInt(raw.candidatesTokenCount),
+    thoughts_tokens: asNonNegInt(raw.thoughtsTokenCount),
+    total_tokens: asNonNegInt(raw.totalTokenCount),
+  };
+}
+
+function asNonNegInt(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0) {
+    return 0;
+  }
+  return Math.trunc(n);
 }
 
 function parseJson(text: string): unknown {

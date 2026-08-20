@@ -55,6 +55,32 @@ export type ExtractedField = z.infer<typeof extractedFieldSchema>;
 export type ExtractedTable = z.infer<typeof extractedTableSchema>;
 export type ExtractionResult = z.infer<typeof extractionResultSchema>;
 
+export type TokenUsageMeta = {
+  prompt_tokens: number;
+  candidates_tokens: number;
+  thoughts_tokens: number;
+  total_tokens: number;
+};
+
+export type ExtractionPricingMeta = {
+  currency: 'USD';
+  input_per_1m_usd: number;
+  output_per_1m_usd: number;
+  note: string;
+};
+
+export type ExtractionMeta = {
+  processing_time_ms: number;
+  model: string;
+  usage: TokenUsageMeta;
+  cost_usd: number | null;
+  pricing: ExtractionPricingMeta | null;
+};
+
+export type StoredExtractionDocument = ExtractionResult & {
+  meta?: ExtractionMeta;
+};
+
 const HEBREW_ASCII_QUOTE = /([\u0590-\u05FF])"([\u0590-\u05FF])/g;
 
 export function normalizeHebrewQuotes(text: string): string {
@@ -63,6 +89,84 @@ export function normalizeHebrewQuotes(text: string): string {
 
 export function parseExtractionResult(input: unknown): ExtractionResult {
   return normalizeResult(extractionResultSchema.parse(input));
+}
+
+export function parseStoredExtractionDocument(input: unknown): {
+  result: ExtractionResult;
+  meta: ExtractionMeta | null;
+} {
+  if (!input || typeof input !== 'object') {
+    throw new Error('Stored extraction document must be an object');
+  }
+  const record = input as Record<string, unknown>;
+  return {
+    result: parseExtractionResult(input),
+    meta: parseExtractionMeta(record.meta),
+  };
+}
+
+export function parseExtractionMeta(input: unknown): ExtractionMeta | null {
+  if (!input || typeof input !== 'object') {
+    return null;
+  }
+  const raw = input as Record<string, unknown>;
+  const usage = raw.usage;
+  if (!usage || typeof usage !== 'object') {
+    return null;
+  }
+  const usageRaw = usage as Record<string, unknown>;
+  const processingTime = asNonNegInt(raw.processing_time_ms);
+  const model = typeof raw.model === 'string' ? raw.model : '';
+  if (processingTime === null || !model) {
+    return null;
+  }
+
+  return {
+    processing_time_ms: processingTime,
+    model,
+    usage: {
+      prompt_tokens: asNonNegInt(usageRaw.prompt_tokens) ?? 0,
+      candidates_tokens: asNonNegInt(usageRaw.candidates_tokens) ?? 0,
+      thoughts_tokens: asNonNegInt(usageRaw.thoughts_tokens) ?? 0,
+      total_tokens: asNonNegInt(usageRaw.total_tokens) ?? 0,
+    },
+    cost_usd: asFiniteNumber(raw.cost_usd),
+    pricing: parsePricingMeta(raw.pricing),
+  };
+}
+
+function parsePricingMeta(input: unknown): ExtractionPricingMeta | null {
+  if (!input || typeof input !== 'object') {
+    return null;
+  }
+  const raw = input as Record<string, unknown>;
+  const inputPrice = asFiniteNumber(raw.input_per_1m_usd);
+  const outputPrice = asFiniteNumber(raw.output_per_1m_usd);
+  if (inputPrice === null || outputPrice === null) {
+    return null;
+  }
+  return {
+    currency: 'USD',
+    input_per_1m_usd: inputPrice,
+    output_per_1m_usd: outputPrice,
+    note: typeof raw.note === 'string' ? raw.note : '',
+  };
+}
+
+function asNonNegInt(value: unknown): number | null {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0) {
+    return null;
+  }
+  return Math.trunc(n);
+}
+
+function asFiniteNumber(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 function normalizeResult(result: ExtractionResult): ExtractionResult {

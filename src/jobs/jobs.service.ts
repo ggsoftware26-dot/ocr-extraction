@@ -11,8 +11,12 @@ import {
   MIME_BY_EXTENSION,
   OCR_QUEUE,
 } from '../common/constants';
+import {
+  parseStoredExtractionDocument,
+  type ExtractionMeta,
+  type ExtractionResult,
+} from '../extraction/schema';
 import { StorageService } from '../storage/storage.service';
-import type { ExtractionResult } from '../extraction/schema';
 import {
   jobProcessingTimeMs,
   type JobStatus,
@@ -24,6 +28,10 @@ export type JobView = {
   status: JobStatus;
   result: ExtractionResult | null;
   processing_time_ms: number | null;
+  model: string | null;
+  usage: ExtractionMeta['usage'] | null;
+  cost_usd: number | null;
+  pricing: ExtractionMeta['pricing'] | null;
   error: string | null;
 };
 
@@ -59,13 +67,7 @@ export class JobsService {
       jobId,
     });
 
-    return {
-      job_id: jobId,
-      status: 'queued',
-      result: null,
-      processing_time_ms: null,
-      error: null,
-    };
+    return emptyJobView(jobId, 'queued');
   }
 
   async get(jobId: string): Promise<JobView> {
@@ -78,34 +80,64 @@ export class JobsService {
     const status = mapBullState(state);
 
     if (status === 'completed') {
+      const stored = await this.loadStoredMeta(jobId);
       return {
         job_id: jobId,
         status,
-        result: (job.returnvalue as ExtractionResult | undefined) ?? null,
-        processing_time_ms: jobProcessingTimeMs(job),
+        result:
+          stored?.result ??
+          (job.returnvalue as ExtractionResult | undefined) ??
+          null,
+        processing_time_ms:
+          stored?.meta?.processing_time_ms ?? jobProcessingTimeMs(job),
+        model: stored?.meta?.model ?? null,
+        usage: stored?.meta?.usage ?? null,
+        cost_usd: stored?.meta?.cost_usd ?? null,
+        pricing: stored?.meta?.pricing ?? null,
         error: null,
       };
     }
 
     if (status === 'failed') {
       return {
-        job_id: jobId,
-        status,
-        result: null,
+        ...emptyJobView(jobId, status),
         processing_time_ms: jobProcessingTimeMs(job),
         error: job.failedReason ?? 'Extraction failed',
       };
     }
 
     return {
-      job_id: jobId,
-      status,
-      result: null,
+      ...emptyJobView(jobId, status),
       processing_time_ms:
         status === 'processing' ? jobProcessingTimeMs(job) : null,
-      error: null,
     };
   }
+
+  private async loadStoredMeta(jobId: string): Promise<{
+    result: ExtractionResult;
+    meta: ExtractionMeta | null;
+  } | null> {
+    try {
+      const raw = await this.storage.getObject(this.storage.resultKey(jobId));
+      return parseStoredExtractionDocument(JSON.parse(raw.toString('utf8')));
+    } catch {
+      return null;
+    }
+  }
+}
+
+function emptyJobView(jobId: string, status: JobStatus): JobView {
+  return {
+    job_id: jobId,
+    status,
+    result: null,
+    processing_time_ms: null,
+    model: null,
+    usage: null,
+    cost_usd: null,
+    pricing: null,
+    error: null,
+  };
 }
 
 function resolveMimeType(file: Express.Multer.File): string {

@@ -4,8 +4,13 @@ import { Job } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import { OCR_QUEUE } from '../common/constants';
 import { envNumber } from '../common/env';
+import { buildCostEstimate } from '../extraction/cost';
 import { ExtractionService } from '../extraction/extraction.service';
-import type { ExtractionResult } from '../extraction/schema';
+import type {
+  ExtractionMeta,
+  ExtractionResult,
+  StoredExtractionDocument,
+} from '../extraction/schema';
 import { StorageService } from '../storage/storage.service';
 import { jobProcessingTimeMs, type OcrJobData } from '../jobs/job.types';
 
@@ -19,7 +24,7 @@ export class OcrProcessor extends WorkerHost {
   constructor(
     private readonly extraction: ExtractionService,
     private readonly storage: StorageService,
-    config: ConfigService,
+    private readonly config: ConfigService,
   ) {
     super();
     this.timeoutMs = envNumber(config, 'EXTRACT_TIMEOUT_MS', 60_000);
@@ -30,15 +35,31 @@ export class OcrProcessor extends WorkerHost {
     this.logger.log(`Processing job ${jobId} (${mimeType})`);
 
     const bytes = await this.storage.getObject(objectKey);
-    const result = await this.extraction.extract(bytes, mimeType);
+    const startedAt = Date.now();
+    const outcome = await this.extraction.extract(bytes, mimeType);
+    const processingTimeMs = Math.max(0, Date.now() - startedAt);
+    const cost = buildCostEstimate(outcome.usage, this.config);
+
+    const meta: ExtractionMeta = {
+      processing_time_ms: processingTimeMs,
+      model: outcome.model,
+      usage: outcome.usage,
+      cost_usd: cost.cost_usd,
+      pricing: cost.pricing,
+    };
+
+    const document: StoredExtractionDocument = {
+      ...outcome.result,
+      meta,
+    };
 
     await this.storage.putObject(
       this.storage.resultKey(jobId),
-      Buffer.from(JSON.stringify(result)),
+      Buffer.from(JSON.stringify(document)),
       'application/json',
     );
 
-    return result;
+    return outcome.result;
   }
 
   @OnWorkerEvent('completed')
