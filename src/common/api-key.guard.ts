@@ -39,6 +39,12 @@ export class ApiKeyGuard implements CanActivate {
       return header.trim();
     }
 
+    // Query param for <img src> / browser navigation (cannot set auth headers).
+    const query = request.query?.api_key;
+    if (typeof query === 'string' && query.trim()) {
+      return query.trim();
+    }
+
     return undefined;
   }
 

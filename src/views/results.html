@@ -319,6 +319,155 @@
 
     .toast.show { opacity: 0.95; }
 
+    .thumb-openable {
+      cursor: pointer;
+    }
+
+    .thumb-openable:focus-visible {
+      outline: 2px solid rgba(37, 99, 235, 0.45);
+      outline-offset: 2px;
+    }
+
+    .sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      pointer-events: none;
+      visibility: hidden;
+    }
+
+    .sheet.is-visible {
+      visibility: visible;
+    }
+
+    .sheet.open {
+      pointer-events: auto;
+    }
+
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      opacity: 0;
+      transition: opacity 0.32s ease;
+    }
+
+    .sheet.open .sheet-backdrop {
+      opacity: 1;
+    }
+
+    .sheet-panel {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: min(92dvh, 920px);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
+      transform: translateY(105%);
+      transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+      padding-bottom: var(--safe-bottom);
+      will-change: transform;
+    }
+
+    .sheet.open .sheet-panel {
+      transform: translateY(0);
+    }
+
+    .sheet.dragging .sheet-panel,
+    .sheet.dragging .sheet-backdrop {
+      transition: none;
+    }
+
+    .sheet-handle-area {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+      padding: 0.65rem 0 0.35rem;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .sheet-handle-area:active {
+      cursor: grabbing;
+    }
+
+    .sheet-handle {
+      width: 42px;
+      height: 5px;
+      border-radius: 999px;
+      background: #cbd5e1;
+    }
+
+    .sheet-header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.25rem 1rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sheet-title {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sheet-close {
+      flex-shrink: 0;
+      width: 2rem;
+      height: 2rem;
+      border: none;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: var(--text);
+      font-size: 1.25rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .sheet-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem;
+      background: #0f172a;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
+
+    .sheet-body img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+      border-radius: 8px;
+    }
+
+    .sheet-body iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    body.sheet-open {
+      overflow: hidden;
+    }
+
     @media (min-width: 640px) {
       .app { padding-top: 1.5rem; }
       header h1 { font-size: 1.75rem; }
@@ -353,6 +502,27 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <div id="previewSheet" class="sheet" aria-hidden="true">
+    <div class="sheet-backdrop" data-close-sheet></div>
+    <div
+      class="sheet-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sheetTitle"
+    >
+      <div class="sheet-handle-area" id="sheetHandle">
+        <div class="sheet-handle" aria-hidden="true"></div>
+      </div>
+      <div class="sheet-header">
+        <h2 id="sheetTitle" class="sheet-title"></h2>
+        <button type="button" class="sheet-close" aria-label="Close" data-close-sheet>
+          ×
+        </button>
+      </div>
+      <div class="sheet-body" id="sheetBody"></div>
+    </div>
+  </div>
+
   <script>
     const STORAGE_KEY = 'ocr-extraction-api-key';
     const API_BASE = '/v1/results';
@@ -362,9 +532,19 @@
     const resultListEl = document.getElementById('resultList');
     const resultCountEl = document.getElementById('resultCount');
     const toastEl = document.getElementById('toast');
+    const previewSheetEl = document.getElementById('previewSheet');
+    const sheetPanelEl = previewSheetEl.querySelector('.sheet-panel');
+    const sheetHandleEl = document.getElementById('sheetHandle');
+    const sheetTitleEl = document.getElementById('sheetTitle');
+    const sheetBodyEl = document.getElementById('sheetBody');
 
-    /** @type {Map<string, string>} jobId -> blob preview URL */
-    const previewUrls = new Map();
+    const sheetDrag = {
+      active: false,
+      startY: 0,
+      currentY: 0,
+    };
+    let sheetClosing = false;
+    let sheetCloseTimer = 0;
 
     apiKeyInput.value = localStorage.getItem(STORAGE_KEY) || '';
     apiKeyInput.addEventListener('change', () => {
@@ -378,6 +558,11 @@
         Authorization: `Bearer ${key}`,
         'X-API-Key': key,
       };
+    }
+
+    function previewSrc(jobId) {
+      const key = apiKeyInput.value.trim();
+      return `${API_BASE}/${jobId}/preview?api_key=${encodeURIComponent(key)}`;
     }
 
     function toast(message) {
@@ -451,30 +636,141 @@
 
     function renderThumbHtml(kind, previewUrl, name) {
       if (kind === 'image' && previewUrl) {
-        return `<div class="thumb"><img src="${previewUrl}" alt="Preview of ${escapeHtml(name)}" loading="lazy" /></div>`;
+        return `<div class="thumb thumb-openable" role="button" tabindex="0" aria-label="Open preview of ${escapeHtml(name)}"><img src="${previewUrl}" alt="Preview of ${escapeHtml(name)}" loading="lazy" /></div>`;
       }
-      if (kind === 'pdf') return pdfIconHtml();
+      if (kind === 'pdf') {
+        return `<div class="thumb thumb-pdf thumb-openable" role="button" tabindex="0" aria-label="Open preview of ${escapeHtml(name)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+      </div>`;
+      }
       return docIconHtml();
     }
 
-    function revokeAllPreviews() {
-      for (const url of previewUrls.values()) {
-        URL.revokeObjectURL(url);
-      }
-      previewUrls.clear();
+    function sheetBackdrop() {
+      return previewSheetEl.querySelector('.sheet-backdrop');
     }
 
-    async function fetchPreviewUrl(jobId) {
-      const response = await fetch(`${API_BASE}/${jobId}/preview`, {
-        headers: authHeaders(),
-      });
-      if (!response.ok) {
-        return null;
+    function finishSheetClose() {
+      window.clearTimeout(sheetCloseTimer);
+      if (!previewSheetEl.classList.contains('is-visible')) {
+        sheetClosing = false;
+        return;
       }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      previewUrls.set(jobId, url);
-      return url;
+      sheetClosing = false;
+      previewSheetEl.classList.remove('is-visible', 'open', 'dragging');
+      sheetPanelEl.style.transform = '';
+      sheetBackdrop().style.opacity = '';
+      sheetBodyEl.innerHTML = '';
+      sheetTitleEl.textContent = '';
+    }
+
+    function openPreviewSheet(item) {
+      if (!item?.has_preview) return;
+
+      window.clearTimeout(sheetCloseTimer);
+      sheetClosing = false;
+      sheetDrag.active = false;
+
+      const src = previewSrc(item.job_id);
+      sheetTitleEl.textContent = item.name || 'Preview';
+
+      if (item.kind === 'pdf') {
+        sheetBodyEl.innerHTML = `<iframe src="${src}" title="PDF preview of ${escapeHtml(item.name)}"></iframe>`;
+      } else {
+        sheetBodyEl.innerHTML = `<img src="${src}" alt="Preview of ${escapeHtml(item.name)}" />`;
+      }
+
+      sheetPanelEl.style.transform = '';
+      sheetBackdrop().style.opacity = '';
+      previewSheetEl.classList.remove('dragging');
+      previewSheetEl.classList.add('is-visible');
+      previewSheetEl.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('sheet-open');
+
+      requestAnimationFrame(() => {
+        previewSheetEl.classList.add('open');
+      });
+    }
+
+    function closePreviewSheet() {
+      if (!previewSheetEl.classList.contains('is-visible') || sheetClosing) return;
+
+      sheetClosing = true;
+      sheetDrag.active = false;
+      previewSheetEl.classList.remove('dragging');
+      previewSheetEl.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('sheet-open');
+
+      const backdrop = sheetBackdrop();
+      const fromDrag = Boolean(sheetPanelEl.style.transform);
+
+      // Keep sheet visible while it animates out.
+      previewSheetEl.classList.remove('open');
+
+      if (fromDrag) {
+        // Continue from the current drag offset down off-screen.
+        requestAnimationFrame(() => {
+          sheetPanelEl.style.transform = 'translateY(105%)';
+          backdrop.style.opacity = '0';
+        });
+      } else {
+        sheetPanelEl.style.transform = '';
+        backdrop.style.opacity = '';
+      }
+
+      const onEnd = (event) => {
+        if (event.target !== sheetPanelEl || event.propertyName !== 'transform') {
+          return;
+        }
+        sheetPanelEl.removeEventListener('transitionend', onEnd);
+        finishSheetClose();
+      };
+      sheetPanelEl.addEventListener('transitionend', onEnd);
+      sheetCloseTimer = window.setTimeout(finishSheetClose, 400);
+    }
+
+    function setSheetDragOffset(dy) {
+      const offset = Math.max(0, dy);
+      sheetPanelEl.style.transform = `translateY(${offset}px)`;
+      sheetBackdrop().style.opacity = String(Math.max(0.15, 1 - offset / 420));
+    }
+
+    function onSheetPointerDown(event) {
+      if (!previewSheetEl.classList.contains('open') || sheetClosing) return;
+      if (event.target.closest('[data-close-sheet]')) return;
+
+      const point = event.touches ? event.touches[0] : event;
+      sheetDrag.active = true;
+      sheetDrag.startY = point.clientY;
+      sheetDrag.currentY = 0;
+      previewSheetEl.classList.add('dragging');
+    }
+
+    function onSheetPointerMove(event) {
+      if (!sheetDrag.active) return;
+      const point = event.touches ? event.touches[0] : event;
+      sheetDrag.currentY = point.clientY - sheetDrag.startY;
+      if (sheetDrag.currentY > 0) {
+        event.preventDefault();
+        setSheetDragOffset(sheetDrag.currentY);
+      }
+    }
+
+    function onSheetPointerUp() {
+      if (!sheetDrag.active) return;
+      sheetDrag.active = false;
+      previewSheetEl.classList.remove('dragging');
+
+      if (sheetDrag.currentY > 110) {
+        closePreviewSheet();
+        return;
+      }
+
+      sheetPanelEl.style.transform = '';
+      sheetBackdrop().style.opacity = '';
     }
 
     function syncResultBlock(card, item) {
@@ -512,7 +808,7 @@
       }
     }
 
-    function buildResultCard(item, previewUrl) {
+    function buildResultCard(item) {
       const article = document.createElement('article');
       article.className = 'job-card';
       article.dataset.id = item.job_id;
@@ -535,13 +831,29 @@
 
       const thumbSlot = article.querySelector('.thumb-slot');
       if (thumbSlot) {
-        if (item.kind === 'image' && previewUrl) {
-          thumbSlot.outerHTML = renderThumbHtml('image', previewUrl, item.name);
-        } else if (item.has_preview && item.kind === 'image' && !previewUrl) {
-          thumbSlot.outerHTML = placeholderThumbHtml('doc');
+        if (item.has_preview && item.kind === 'image') {
+          thumbSlot.outerHTML = renderThumbHtml(
+            'image',
+            previewSrc(item.job_id),
+            item.name,
+          );
+        } else if (item.has_preview && item.kind === 'pdf') {
+          thumbSlot.outerHTML = renderThumbHtml('pdf', null, item.name);
         } else {
           thumbSlot.outerHTML = placeholderThumbHtml(item.kind);
         }
+      }
+
+      const openable = article.querySelector('.thumb-openable');
+      if (openable) {
+        const open = () => openPreviewSheet(item);
+        openable.addEventListener('click', open);
+        openable.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            open();
+          }
+        });
       }
 
       syncResultBlock(article, item);
@@ -557,7 +869,6 @@
 
       loadBtn.disabled = true;
       resultListEl.innerHTML = '<div class="loading">Loading results from R2…</div>';
-      revokeAllPreviews();
 
       try {
         const response = await fetch(API_BASE, { headers: authHeaders() });
@@ -577,11 +888,7 @@
 
         resultListEl.innerHTML = '';
         for (const item of items) {
-          let previewUrl = null;
-          if (item.has_preview && item.kind === 'image') {
-            previewUrl = await fetchPreviewUrl(item.job_id);
-          }
-          resultListEl.appendChild(buildResultCard(item, previewUrl));
+          resultListEl.appendChild(buildResultCard(item));
         }
       } catch (error) {
         resultListEl.innerHTML = '<div class="empty">Could not load results.</div>';
@@ -593,6 +900,27 @@
     }
 
     loadBtn.addEventListener('click', loadResults);
+
+    previewSheetEl.querySelectorAll('[data-close-sheet]').forEach((el) => {
+      el.addEventListener('click', closePreviewSheet);
+    });
+
+    sheetHandleEl.addEventListener('touchstart', onSheetPointerDown, {
+      passive: true,
+    });
+    sheetHandleEl.addEventListener('mousedown', onSheetPointerDown);
+    const sheetHeaderEl = previewSheetEl.querySelector('.sheet-header');
+    sheetHeaderEl.addEventListener('touchstart', onSheetPointerDown, {
+      passive: true,
+    });
+    sheetHeaderEl.addEventListener('mousedown', onSheetPointerDown);
+    window.addEventListener('touchmove', onSheetPointerMove, { passive: false });
+    window.addEventListener('mousemove', onSheetPointerMove);
+    window.addEventListener('touchend', onSheetPointerUp);
+    window.addEventListener('mouseup', onSheetPointerUp);
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closePreviewSheet();
+    });
 
     if (apiKeyInput.value.trim()) {
       loadResults();
