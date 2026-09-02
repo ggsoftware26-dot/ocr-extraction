@@ -49,6 +49,15 @@ curl -X POST http://localhost:3000/v1/jobs \
   -F "webhook_url=https://example.com/ocr-hook"
 ```
 
+Optional `schema`: a JSON-encoded array of `{ key, description }` fields you expect back. When set, the model still extracts everything it can find (open-ended), but also maps matching values onto exactly these keys:
+
+```bash
+curl -X POST http://localhost:3000/v1/jobs \
+  -H "Authorization: Bearer $API_KEY" \
+  -F "file=@./sample.pdf" \
+  -F 'schema=[{"key":"total_amount","description":"Total amount due, including tax"},{"key":"supplier_name","description":"The vendor or business name"}]'
+```
+
 Response:
 
 ```json

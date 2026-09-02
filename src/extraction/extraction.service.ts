@@ -8,7 +8,11 @@ import {
   type OcrProvider,
   type TokenUsage,
 } from '../providers/ocr-provider';
-import { mergeExtractionResults, type ExtractionResult } from './schema';
+import {
+  mergeExtractionResults,
+  type ClientSchemaField,
+  type ExtractionResult,
+} from './schema';
 import { countPdfPages, mapPool, splitPdfIntoBatches } from './pdf.util';
 
 export type ExtractionOutcome = {
@@ -33,9 +37,13 @@ export class ExtractionService {
     this.batchConcurrency = envNumber(config, 'PDF_BATCH_CONCURRENCY', 2);
   }
 
-  async extract(bytes: Buffer, mimeType: string): Promise<ExtractionOutcome> {
+  async extract(
+    bytes: Buffer,
+    mimeType: string,
+    clientSchema?: ClientSchemaField[],
+  ): Promise<ExtractionOutcome> {
     if (mimeType === 'application/pdf') {
-      return this.extractPdf(bytes);
+      return this.extractPdf(bytes, clientSchema);
     }
 
     return this.provider.extract({
@@ -43,10 +51,14 @@ export class ExtractionService {
       mimeType,
       pageStart: 1,
       pageCount: 1,
+      clientSchema,
     });
   }
 
-  private async extractPdf(bytes: Buffer): Promise<ExtractionOutcome> {
+  private async extractPdf(
+    bytes: Buffer,
+    clientSchema?: ClientSchemaField[],
+  ): Promise<ExtractionOutcome> {
     const pageCount = await countPdfPages(bytes);
     this.logger.log(`PDF has ${pageCount} page(s)`);
 
@@ -56,6 +68,7 @@ export class ExtractionService {
         mimeType: 'application/pdf',
         pageStart: 1,
         pageCount,
+        clientSchema,
       });
     }
 
@@ -70,6 +83,7 @@ export class ExtractionService {
         mimeType: 'application/pdf',
         pageStart: batch.pageStart,
         pageCount: batch.pageCount,
+        clientSchema,
       }),
     );
 

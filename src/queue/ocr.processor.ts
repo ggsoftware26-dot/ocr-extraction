@@ -36,7 +36,11 @@ export class OcrProcessor extends WorkerHost {
 
     const bytes = await this.storage.getObject(objectKey);
     const startedAt = Date.now();
-    const outcome = await this.extraction.extract(bytes, mimeType);
+    const outcome = await this.extraction.extract(
+      bytes,
+      mimeType,
+      job.data.clientSchema,
+    );
     const processingTimeMs = Math.max(0, Date.now() - startedAt);
     const cost = buildCostEstimate(outcome.usage, this.config);
 

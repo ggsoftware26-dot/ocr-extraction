@@ -1,9 +1,12 @@
+import type { ClientSchemaField } from '../extraction/schema';
+
 export type OcrJobData = {
   jobId: string;
   objectKey: string;
   mimeType: string;
   originalName: string;
   webhookUrl?: string;
+  clientSchema?: ClientSchemaField[];
 };
 
 export type JobStatus = 'queued' | 'processing' | 'completed' | 'failed';

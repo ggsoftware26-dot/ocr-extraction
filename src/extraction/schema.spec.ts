@@ -1,5 +1,7 @@
 import {
+  buildExtractionPrompt,
   mergeExtractionResults,
+  parseClientSchema,
   parseExtractionResult,
   parseStoredExtractionDocument,
   toGlobalPage,
@@ -132,5 +134,51 @@ describe('extraction schema', () => {
       tables: [],
     });
     expect(parsed.meta).toBeNull();
+  });
+
+  describe('parseClientSchema', () => {
+    it('parses a valid client schema JSON string', () => {
+      const fields = parseClientSchema(
+        JSON.stringify([
+          { key: 'total_amount', description: 'Total amount due' },
+        ]),
+      );
+      expect(fields).toEqual([
+        { key: 'total_amount', description: 'Total amount due' },
+      ]);
+    });
+
+    it('rejects invalid JSON', () => {
+      expect(() => parseClientSchema('not json')).toThrow(
+        'schema must be valid JSON',
+      );
+    });
+
+    it('rejects a schema missing required fields', () => {
+      expect(() =>
+        parseClientSchema(JSON.stringify([{ key: 'total_amount' }])),
+      ).toThrow('Invalid schema');
+    });
+
+    it('rejects an empty array', () => {
+      expect(() => parseClientSchema('[]')).toThrow('Invalid schema');
+    });
+  });
+
+  describe('buildExtractionPrompt', () => {
+    it('omits the requested-fields section when no client schema is given', () => {
+      const prompt = buildExtractionPrompt(1, 3);
+      expect(prompt).not.toContain('client also expects');
+    });
+
+    it('appends the requested fields with their exact keys and descriptions', () => {
+      const prompt = buildExtractionPrompt(1, 3, [
+        { key: 'total_amount', description: 'Total amount due' },
+        { key: 'supplier_name', description: 'The vendor or business name' },
+      ]);
+      expect(prompt).toContain('client also expects');
+      expect(prompt).toContain('- total_amount: Total amount due');
+      expect(prompt).toContain('- supplier_name: The vendor or business name');
+    });
   });
 });

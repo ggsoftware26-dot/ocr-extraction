@@ -12,7 +12,9 @@ import {
   OCR_QUEUE,
 } from '../common/constants';
 import {
+  parseClientSchema,
   parseStoredExtractionDocument,
+  type ClientSchemaField,
   type ExtractionMeta,
   type ExtractionResult,
 } from '../extraction/schema';
@@ -45,6 +47,7 @@ export class JobsService {
   async create(
     file: Express.Multer.File,
     webhookUrl?: string,
+    schema?: string,
   ): Promise<JobView> {
     if (!file.buffer?.length) {
       throw new BadRequestException('file is empty');
@@ -61,6 +64,7 @@ export class JobsService {
       mimeType,
       originalName: file.originalname,
       webhookUrl: parseWebhookUrl(webhookUrl),
+      clientSchema: parseClientSchemaField(schema),
     };
 
     await this.queue.add('extract', data, {
@@ -155,6 +159,21 @@ function resolveMimeType(file: Express.Multer.File): string {
   throw new BadRequestException(
     'Unsupported file type. Upload a PDF or image (jpeg, png, webp, gif, tiff, bmp).',
   );
+}
+
+function parseClientSchemaField(
+  value?: string,
+): ClientSchemaField[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    return parseClientSchema(value);
+  } catch (error) {
+    throw new BadRequestException(
+      error instanceof Error ? error.message : 'Invalid schema',
+    );
+  }
 }
 
 function parseWebhookUrl(value?: string): string | undefined {

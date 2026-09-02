@@ -1,10 +1,11 @@
-import type { ExtractionResult } from '../extraction/schema';
+import type { ClientSchemaField, ExtractionResult } from '../extraction/schema';
 
 export type OcrInput = {
   bytes: Buffer;
   mimeType: string;
   pageStart: number;
   pageCount: number;
+  clientSchema?: ClientSchemaField[];
 };
 
 export type TokenUsage = {

@@ -89,7 +89,11 @@ export class GeminiProvider implements OcrProvider {
   }
 
   private async callModel(input: OcrInput): Promise<OcrExtractOutput> {
-    const prompt = buildExtractionPrompt(input.pageStart, input.pageCount);
+    const prompt = buildExtractionPrompt(
+      input.pageStart,
+      input.pageCount,
+      input.clientSchema,
+    );
     const response = await this.client.models.generateContent({
       model: this.model,
       contents: [

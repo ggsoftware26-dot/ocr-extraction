@@ -55,6 +55,37 @@ export type ExtractedField = z.infer<typeof extractedFieldSchema>;
 export type ExtractedTable = z.infer<typeof extractedTableSchema>;
 export type ExtractionResult = z.infer<typeof extractionResultSchema>;
 
+export const clientSchemaFieldSchema = z.object({
+  key: z.string().trim().min(1).max(100),
+  description: z.string().trim().min(1).max(500),
+});
+
+export const clientSchemaSchema = z
+  .array(clientSchemaFieldSchema)
+  .min(1)
+  .max(50);
+
+export type ClientSchemaField = z.infer<typeof clientSchemaFieldSchema>;
+
+/** Parses and validates the client-supplied `schema` request field (a JSON string). */
+export function parseClientSchema(raw: string): ClientSchemaField[] {
+  let json: unknown;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    throw new Error('schema must be valid JSON');
+  }
+
+  const result = clientSchemaSchema.safeParse(json);
+  if (!result.success) {
+    const message = result.error.issues
+      .map((issue) => `${issue.path.join('.') || 'schema'}: ${issue.message}`)
+      .join('; ');
+    throw new Error(`Invalid schema: ${message}`);
+  }
+  return result.data;
+}
+
 export type TokenUsageMeta = {
   prompt_tokens: number;
   candidates_tokens: number;
@@ -194,8 +225,9 @@ function normalizeResult(result: ExtractionResult): ExtractionResult {
 export function buildExtractionPrompt(
   pageStart: number,
   pageCount: number,
+  clientSchema?: ClientSchemaField[],
 ): string {
-  return [
+  const base = [
     'You are an OCR extraction engine. Extract every distinct fact visible in this document.',
     '',
     'Rules:',
@@ -210,6 +242,20 @@ export function buildExtractionPrompt(
     '- document_type is a short label (invoice, receipt, id, contract, letter, photo, etc.) or empty if unknown.',
     '- summary is one or two sentences describing the document.',
   ].join('\n');
+
+  if (!clientSchema?.length) {
+    return base;
+  }
+
+  const requested = [
+    '',
+    'The client also expects these specific fields, on top of anything else you find:',
+    ...clientSchema.map((field) => `- ${field.key}: ${field.description}`),
+    '',
+    'For each field listed above, find the best matching value in the document by meaning — using its name and description, not just literal text matches — and output it in fields[] using EXACTLY that key (do not rename, translate, or reformat the key). If you cannot find a confident value for one of these fields, omit it rather than guessing. Continue to also report any other distinct facts you find as additional fields, with your own descriptive snake_case keys, exactly as you would without this list.',
+  ].join('\n');
+
+  return base + requested;
 }
 
 export function toGlobalPage(
