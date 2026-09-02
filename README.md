@@ -1,20 +1,22 @@
 # OCR Extraction Service
 
-NestJS service that accepts images or PDFs, runs open-ended OCR extraction with Gemini 2.5 Flash, and returns JSON fields (`key`, `value`, `description`) plus tables.
+NestJS service that accepts images or PDFs, runs open-ended OCR extraction with Gemini (cloud) or self-hosted Qwen2.5-VL, and returns JSON fields (`key`, `value`, `description`) plus tables.
 
-HTTP stays fast: upload stores the file and enqueues a job. Workers talk to Gemini and you poll (or receive a webhook) for the result.
+HTTP stays fast: upload stores the file and enqueues a job. Workers call the selected model and you poll (or receive a webhook) for the result.
 
 ## Prerequisites
 
 - Node.js 22+
 - Docker (Redis + MinIO)
-- A `GEMINI_API_KEY`
+- A `GEMINI_API_KEY` (for Gemini jobs)
+- Optional: [Ollama](https://ollama.com) with `qwen2.5vl:7b` for local Qwen jobs
 
 ## Local setup
 
 ```bash
 cp .env.example .env
 # set API_KEY and GEMINI_API_KEY in .env
+# for Qwen: ollama pull qwen2.5vl:7b  (QWEN_* defaults target localhost:11434)
 
 docker compose up -d
 npm install
@@ -26,6 +28,10 @@ Run the API and worker in two terminals:
 npm run start:dev
 npm run start:worker:dev
 ```
+
+In the upload UI (`/views/upload.html`), choose **Server → Gemini** or **Server → Qwen2.5-VL**, or **On-device Nano**.
+
+Jobs accept `provider=gemini|qwen` (multipart field or env default `OCR_PROVIDER`).
 
 Optional: run the IMAP ingest service (IDLE mailbox → OCR API → webhook):
 
@@ -46,8 +52,11 @@ Set `IMAP_ENABLED=false` to run ingest webhooks only (no mailbox IDLE).
 curl -X POST http://localhost:3000/v1/jobs \
   -H "Authorization: Bearer $API_KEY" \
   -F "file=@./sample.pdf" \
+  -F "provider=gemini" \
   -F "webhook_url=https://example.com/ocr-hook"
 ```
+
+Use `provider=qwen` for self-hosted Qwen2.5-VL (images; Ollama must be reachable from the worker).
 
 Response:
 

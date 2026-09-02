@@ -27,4 +27,21 @@ describe('cost estimate', () => {
     // 1M * 0.30 + 0.5M * 2.50 = 0.30 + 1.25 = 1.55
     expect(cost).toBe(1.55);
   });
+
+  it('prices self-hosted Qwen as zero API cost', () => {
+    const pricing = loadPricing(config, 'qwen');
+    expect(pricing.input_per_1m_usd).toBe(0);
+    expect(pricing.output_per_1m_usd).toBe(0);
+    expect(
+      estimateCostUsd(
+        {
+          prompt_tokens: 1_000_000,
+          candidates_tokens: 500_000,
+          thoughts_tokens: 0,
+          total_tokens: 1_500_000,
+        },
+        pricing,
+      ),
+    ).toBe(0);
+  });
 });

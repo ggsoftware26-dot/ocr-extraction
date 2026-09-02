@@ -88,7 +88,82 @@ export function normalizeHebrewQuotes(text: string): string {
 }
 
 export function parseExtractionResult(input: unknown): ExtractionResult {
-  return normalizeResult(extractionResultSchema.parse(input));
+  return normalizeResult(
+    extractionResultSchema.parse(coerceExtractionInput(input)),
+  );
+}
+
+/** Soften common VLM JSON quirks before Zod (e.g. table rows as objects). */
+export function coerceExtractionInput(input: unknown): unknown {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return input;
+  }
+  const record = { ...(input as Record<string, unknown>) };
+  if (Array.isArray(record.tables)) {
+    record.tables = record.tables.map(coerceTable);
+  }
+  if (Array.isArray(record.fields)) {
+    record.fields = record.fields.map(coerceField);
+  }
+  return record;
+}
+
+function coerceField(field: unknown): unknown {
+  if (!field || typeof field !== 'object' || Array.isArray(field)) {
+    return field;
+  }
+  const f = { ...(field as Record<string, unknown>) };
+  if (f.value != null && typeof f.value !== 'string') {
+    f.value = stringifyCell(f.value);
+  }
+  if (f.description != null && typeof f.description !== 'string') {
+    f.description = stringifyCell(f.description);
+  }
+  if (f.key != null && typeof f.key !== 'string') {
+    f.key = stringifyCell(f.key);
+  }
+  return f;
+}
+
+function coerceTable(table: unknown): unknown {
+  if (!table || typeof table !== 'object' || Array.isArray(table)) {
+    return table;
+  }
+  const t = { ...(table as Record<string, unknown>) };
+  if (Array.isArray(t.headers)) {
+    t.headers = t.headers.map((header) => stringifyCell(header));
+  }
+  if (Array.isArray(t.rows)) {
+    t.rows = t.rows.map(coerceTableRow);
+  }
+  return t;
+}
+
+function coerceTableRow(row: unknown): string[] {
+  if (Array.isArray(row)) {
+    return row.map((cell) => stringifyCell(cell));
+  }
+  if (row && typeof row === 'object') {
+    return Object.values(row).map((cell) => stringifyCell(cell));
+  }
+  return [stringifyCell(row)];
+}
+
+function stringifyCell(cell: unknown): string {
+  if (cell == null) {
+    return '';
+  }
+  if (typeof cell === 'string') {
+    return cell;
+  }
+  if (typeof cell === 'number' || typeof cell === 'boolean') {
+    return String(cell);
+  }
+  try {
+    return JSON.stringify(cell);
+  } catch {
+    return String(cell);
+  }
 }
 
 export function parseStoredExtractionDocument(input: unknown): {

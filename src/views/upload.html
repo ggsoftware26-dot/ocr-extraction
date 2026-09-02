@@ -166,6 +166,18 @@
       display: none;
     }
 
+    #serverProviderBlock {
+      margin-bottom: 1rem;
+    }
+
+    #serverProviderBlock.hidden {
+      display: none;
+    }
+
+    #serverProviderLabel {
+      margin-bottom: 0.5rem;
+    }
+
     .dropzone {
       margin-top: 1rem;
       border: 2px dashed #cbd5e1;
@@ -640,7 +652,7 @@
       <div class="mode-row" role="radiogroup" aria-labelledby="modeLabel">
         <label class="mode-option">
           <input type="radio" name="extractMode" value="cloud" checked />
-          <span>Cloud Gemini<small>Server · API key · PDF + images</small></span>
+          <span>Server<small>API key · Gemini or Qwen</small></span>
         </label>
         <label class="mode-option">
           <input type="radio" name="extractMode" value="nano" />
@@ -648,6 +660,20 @@
         </label>
       </div>
       <div id="nanoStatus" class="nano-status" hidden></div>
+
+      <div id="serverProviderBlock">
+        <label id="serverProviderLabel">Server model</label>
+        <div class="mode-row" role="radiogroup" aria-labelledby="serverProviderLabel">
+          <label class="mode-option">
+            <input type="radio" name="serverProvider" value="gemini" checked />
+            <span>Gemini<small>Cloud · PDF + images</small></span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="serverProvider" value="qwen" />
+            <span>Qwen2.5-VL<small>Self-hosted · images</small></span>
+          </label>
+        </div>
+      </div>
 
       <div id="apiKeyBlock" class="api-key-block">
         <label for="apiKey">API key</label>
@@ -705,10 +731,12 @@
   <script>
     const STORAGE_KEY = 'ocr-extraction-api-key';
     const MODE_KEY = 'ocr-extraction-mode';
+    const PROVIDER_KEY = 'ocr-extraction-server-provider';
     const POLL_MS = 2000;
     const TERMINAL = new Set(['completed', 'failed']);
     const API_BASE = '/v1/jobs';
     const NANO_ACCEPT = '.jpg,.jpeg,.png,.webp,.gif,.bmp,image/jpeg,image/png,image/webp,image/gif,image/bmp';
+    const QWEN_ACCEPT = NANO_ACCEPT;
     const CLOUD_ACCEPT =
       '.pdf,.jpg,.jpeg,.png,.webp,.gif,.tif,.tiff,.bmp,image/*,application/pdf';
 
@@ -773,6 +801,7 @@
 
     const apiKeyInput = document.getElementById('apiKey');
     const apiKeyBlock = document.getElementById('apiKeyBlock');
+    const serverProviderBlock = document.getElementById('serverProviderBlock');
     const nanoStatusEl = document.getElementById('nanoStatus');
     const dropzoneHint = document.getElementById('dropzoneHint');
     const dropzone = document.getElementById('dropzone');
@@ -784,6 +813,9 @@
     const jobCountEl = document.getElementById('jobCount');
     const toastEl = document.getElementById('toast');
     const modeInputs = [...document.querySelectorAll('input[name="extractMode"]')];
+    const serverProviderInputs = [
+      ...document.querySelectorAll('input[name="serverProvider"]'),
+    ];
     const previewSheetEl = document.getElementById('previewSheet');
     const sheetPanelEl = previewSheetEl.querySelector('.sheet-panel');
     const sheetHandleEl = document.getElementById('sheetHandle');
@@ -823,6 +855,19 @@
       return modeInputs.find((el) => el.checked)?.value === 'nano' ? 'nano' : 'cloud';
     }
 
+    function getServerProvider() {
+      return serverProviderInputs.find((el) => el.checked)?.value === 'qwen'
+        ? 'qwen'
+        : 'gemini';
+    }
+
+    function setServerProvider(provider) {
+      serverProviderInputs.forEach((el) => {
+        el.checked = el.value === provider;
+      });
+      localStorage.setItem(PROVIDER_KEY, provider);
+    }
+
     function setMode(mode) {
       modeInputs.forEach((el) => {
         el.checked = el.value === mode;
@@ -857,14 +902,27 @@
 
     function syncModeUi() {
       const nano = getMode() === 'nano';
+      const qwen = !nano && getServerProvider() === 'qwen';
       apiKeyBlock.classList.toggle('hidden', nano);
-      dropzoneHint.textContent = nano
-        ? 'Images only · runs locally in Chrome (Gemini Nano)'
-        : 'PDF or images · multiple files supported';
-      fileInput.accept = nano ? NANO_ACCEPT : CLOUD_ACCEPT;
-      uploadBtn.textContent = nano ? 'Extract on device' : 'Upload & extract';
+      serverProviderBlock.classList.toggle('hidden', nano);
 
       if (nano) {
+        dropzoneHint.textContent =
+          'Images only · runs locally in Chrome (Gemini Nano)';
+        fileInput.accept = NANO_ACCEPT;
+        uploadBtn.textContent = 'Extract on device';
+      } else if (qwen) {
+        dropzoneHint.textContent =
+          'Images only · Qwen2.5-VL via local Ollama/vLLM';
+        fileInput.accept = QWEN_ACCEPT;
+        uploadBtn.textContent = 'Upload & extract (Qwen)';
+      } else {
+        dropzoneHint.textContent = 'PDF or images · multiple files supported';
+        fileInput.accept = CLOUD_ACCEPT;
+        uploadBtn.textContent = 'Upload & extract';
+      }
+
+      if (nano || qwen) {
         const before = pendingFiles.length;
         const kept = [];
         for (const entry of pendingFiles) {
@@ -877,8 +935,15 @@
         pendingFiles = kept;
         if (before !== kept.length) {
           renderFiles();
-          toast('Non-image files removed for on-device mode');
+          toast(
+            nano
+              ? 'Non-image files removed for on-device mode'
+              : 'Non-image files removed for Qwen (images only)',
+          );
         }
+      }
+
+      if (nano) {
         nanoStatusEl.hidden = false;
         refreshNanoAvailability();
       } else {
@@ -1655,14 +1720,26 @@
       const accepted = [...files].filter(Boolean);
       if (!accepted.length) return;
 
-      if (getMode() === 'nano') {
+      const imagesOnly =
+        getMode() === 'nano' ||
+        (getMode() === 'cloud' && getServerProvider() === 'qwen');
+
+      if (imagesOnly) {
         const images = accepted.filter(isImage);
         const skipped = accepted.length - images.length;
         if (skipped > 0) {
-          toast(`${skipped} PDF/non-image file(s) skipped in on-device mode`);
+          toast(
+            getMode() === 'nano'
+              ? `${skipped} PDF/non-image file(s) skipped in on-device mode`
+              : `${skipped} PDF/non-image file(s) skipped — Qwen is images only`,
+          );
         }
         if (!images.length) {
-          toast('On-device mode supports images only');
+          toast(
+            getMode() === 'nano'
+              ? 'On-device mode supports images only'
+              : 'Qwen supports images only (use Gemini for PDFs)',
+          );
           return;
         }
         images.forEach(enqueueFile);
@@ -1726,6 +1803,7 @@
 
       const body = new FormData();
       body.append('file', file);
+      body.append('provider', getServerProvider());
 
       const response = await fetch(API_BASE, {
         method: 'POST',
@@ -1903,6 +1981,19 @@
         syncModeUi();
       });
     });
+
+    serverProviderInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        if (!input.checked) return;
+        localStorage.setItem(PROVIDER_KEY, input.value);
+        syncModeUi();
+      });
+    });
+
+    const savedProvider = localStorage.getItem(PROVIDER_KEY);
+    if (savedProvider === 'qwen' || savedProvider === 'gemini') {
+      setServerProvider(savedProvider);
+    }
 
     const savedMode = localStorage.getItem(MODE_KEY);
     if (savedMode === 'nano' || savedMode === 'cloud') {

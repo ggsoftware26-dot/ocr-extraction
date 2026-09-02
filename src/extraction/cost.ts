@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { envNumber } from '../common/env';
 import type { TokenUsage } from '../providers/ocr-provider';
+import type { OcrProviderId } from '../providers/provider-id';
 
 export type PricingInfo = {
   currency: 'USD';
@@ -15,7 +16,19 @@ export type CostEstimate = {
 };
 
 /** Defaults match Gemini 2.5 Flash paid tier (text/image/video). Override via env. */
-export function loadPricing(config: ConfigService): PricingInfo {
+export function loadPricing(
+  config: ConfigService,
+  provider: OcrProviderId = 'gemini',
+): PricingInfo {
+  if (provider === 'qwen') {
+    return {
+      currency: 'USD',
+      input_per_1m_usd: 0,
+      output_per_1m_usd: 0,
+      note: 'self-hosted Qwen (Ollama/vLLM); no cloud API cost',
+    };
+  }
+
   return {
     currency: 'USD',
     input_per_1m_usd: envNumber(config, 'GEMINI_INPUT_PRICE_PER_1M', 0.3),
@@ -37,8 +50,9 @@ export function estimateCostUsd(
 export function buildCostEstimate(
   usage: TokenUsage,
   config: ConfigService,
+  provider: OcrProviderId = 'gemini',
 ): CostEstimate {
-  const pricing = loadPricing(config);
+  const pricing = loadPricing(config, provider);
   return {
     cost_usd: estimateCostUsd(usage, pricing),
     pricing,

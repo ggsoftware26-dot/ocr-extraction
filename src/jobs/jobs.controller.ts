@@ -54,7 +54,7 @@ export class JobsController {
       );
     }
 
-    return this.jobs.create(file, body.webhook_url);
+    return this.jobs.create(file, body.webhook_url, body.provider);
   }
 
   @Get(':id')

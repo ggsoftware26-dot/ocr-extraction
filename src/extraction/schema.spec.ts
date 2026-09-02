@@ -133,4 +133,38 @@ describe('extraction schema', () => {
     });
     expect(parsed.meta).toBeNull();
   });
+
+  it('coerces table rows that VLMs return as objects into string arrays', () => {
+    const result = parseExtractionResult({
+      document_type: 'letter',
+      summary: 'Insurance letter',
+      fields: [
+        {
+          key: 'company_name',
+          value: 'Sherut Premium',
+          description: 'Company',
+          confidence: 0.9,
+          page: 1,
+        },
+      ],
+      tables: [
+        {
+          name: 'coverage',
+          description: 'Coverage details',
+          headers: ['item', 'amount'],
+          rows: [
+            { item: 'Renovation', amount: '100000' },
+            ['Flood', '50000'],
+          ],
+          page: 1,
+        },
+      ],
+    });
+
+    expect(result.fields).toHaveLength(1);
+    expect(result.tables[0].rows).toEqual([
+      ['Renovation', '100000'],
+      ['Flood', '50000'],
+    ]);
+  });
 });

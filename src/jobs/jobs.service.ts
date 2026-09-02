@@ -45,6 +45,7 @@ export class JobsService {
   async create(
     file: Express.Multer.File,
     webhookUrl?: string,
+    provider?: string,
   ): Promise<JobView> {
     if (!file.buffer?.length) {
       throw new BadRequestException('file is empty');
@@ -61,6 +62,7 @@ export class JobsService {
       mimeType,
       originalName: file.originalname,
       webhookUrl: parseWebhookUrl(webhookUrl),
+      provider,
     };
 
     await this.queue.add('extract', data, {

@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { PDFDocument } from 'pdf-lib';
+import type { OcrProviderRegistry } from '../providers/ocr-provider.registry';
 import type { OcrExtractOutput, OcrInput } from '../providers/ocr-provider';
 import { ExtractionService } from './extraction.service';
 import type { ExtractionResult } from './schema';
@@ -46,11 +47,23 @@ describe('ExtractionService', () => {
     },
   } as unknown as ConfigService;
 
+  function registryWith(
+    extract: jest.Mock<Promise<OcrExtractOutput>, [OcrInput]>,
+  ): OcrProviderRegistry {
+    return {
+      resolve: () => ({
+        id: 'gemini' as const,
+        provider: { extract },
+      }),
+      defaultProviderId: () => 'gemini' as const,
+    } as unknown as OcrProviderRegistry;
+  }
+
   it('sends small PDFs in one provider call', async () => {
     const extract = jest.fn<Promise<OcrExtractOutput>, [OcrInput]>(() =>
       Promise.resolve(emptyOutcome()),
     );
-    const service = new ExtractionService({ extract }, config);
+    const service = new ExtractionService(registryWith(extract), config);
     const bytes = await makePdf(3);
 
     const outcome = await service.extract(bytes, 'application/pdf');
@@ -62,13 +75,14 @@ describe('ExtractionService', () => {
       pageCount: 3,
     });
     expect(outcome.usage.total_tokens).toBe(15);
+    expect(outcome.provider).toBe('gemini');
   });
 
   it('splits large PDFs into page batches and aggregates usage', async () => {
     const extract = jest.fn<Promise<OcrExtractOutput>, [OcrInput]>(() =>
       Promise.resolve(emptyOutcome()),
     );
-    const service = new ExtractionService({ extract }, config);
+    const service = new ExtractionService(registryWith(extract), config);
     const bytes = await makePdf(20);
 
     const outcome = await service.extract(bytes, 'application/pdf');

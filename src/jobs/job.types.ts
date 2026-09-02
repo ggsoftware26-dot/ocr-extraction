@@ -4,6 +4,8 @@ export type OcrJobData = {
   mimeType: string;
   originalName: string;
   webhookUrl?: string;
+  /** gemini | qwen — defaults to env OCR_PROVIDER / gemini */
+  provider?: string;
 };
 
 export type JobStatus = 'queued' | 'processing' | 'completed' | 'failed';

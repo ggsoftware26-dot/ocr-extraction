@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type } from '@google/genai';
 import { jsonrepair } from 'jsonrepair';
-import { envNumber, requireEnv } from '../common/env';
+import { envNumber } from '../common/env';
 import {
   buildExtractionPrompt,
   parseExtractionResult,
@@ -65,19 +65,23 @@ const geminiResponseSchema = {
 @Injectable()
 export class GeminiProvider implements OcrProvider {
   private readonly logger = new Logger(GeminiProvider.name);
-  private readonly client: GoogleGenAI;
+  private readonly client: GoogleGenAI | null;
   private readonly model: string;
   private readonly timeoutMs: number;
 
   constructor(config: ConfigService) {
-    this.client = new GoogleGenAI({
-      apiKey: requireEnv(config, 'GEMINI_API_KEY'),
-    });
+    const apiKey = config.get<string>('GEMINI_API_KEY')?.trim();
+    this.client = apiKey ? new GoogleGenAI({ apiKey }) : null;
     this.model = config.get<string>('GEMINI_MODEL') ?? 'gemini-2.5-flash';
     this.timeoutMs = envNumber(config, 'EXTRACT_TIMEOUT_MS', 60_000);
   }
 
   async extract(input: OcrInput): Promise<OcrExtractOutput> {
+    if (!this.client) {
+      throw new Error(
+        'GEMINI_API_KEY is not set. Configure it or choose the Qwen provider.',
+      );
+    }
     try {
       return await this.callModel(input);
     } catch (error) {
@@ -89,6 +93,9 @@ export class GeminiProvider implements OcrProvider {
   }
 
   private async callModel(input: OcrInput): Promise<OcrExtractOutput> {
+    if (!this.client) {
+      throw new Error('GEMINI_API_KEY is not set');
+    }
     const prompt = buildExtractionPrompt(input.pageStart, input.pageCount);
     const response = await this.client.models.generateContent({
       model: this.model,
