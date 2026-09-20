@@ -27,6 +27,13 @@ export interface OcrProvider {
 
 export const OCR_PROVIDER = Symbol('OCR_PROVIDER');
 
+/** Text-only JSON generation, used by classification calls that need no file input. */
+export interface TextProvider {
+  generateJson(prompt: string, responseSchema: unknown): Promise<unknown>;
+}
+
+export const TEXT_PROVIDER = Symbol('TEXT_PROVIDER');
+
 export function emptyTokenUsage(): TokenUsage {
   return {
     prompt_tokens: 0,

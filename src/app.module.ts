@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ClassificationModule } from './classification/classification.module';
 import { JobsModule } from './jobs/jobs.module';
 import { QueueModule } from './queue/queue.module';
 import { ResultsModule } from './results/results.module';
@@ -14,6 +15,7 @@ import { StorageModule } from './storage/storage.module';
     QueueModule,
     JobsModule,
     ResultsModule,
+    ClassificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

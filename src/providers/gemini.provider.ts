@@ -12,6 +12,7 @@ import type {
   OcrExtractOutput,
   OcrInput,
   OcrProvider,
+  TextProvider,
   TokenUsage,
 } from './ocr-provider';
 import { emptyTokenUsage } from './ocr-provider';
@@ -63,7 +64,7 @@ const geminiResponseSchema = {
 };
 
 @Injectable()
-export class GeminiProvider implements OcrProvider {
+export class GeminiProvider implements OcrProvider, TextProvider {
   private readonly logger = new Logger(GeminiProvider.name);
   private readonly client: GoogleGenAI;
   private readonly model: string;
@@ -138,6 +139,29 @@ export class GeminiProvider implements OcrProvider {
         })),
       },
     };
+  }
+
+  /** Text-only JSON call (no file input) for lightweight classification prompts. */
+  async generateJson(
+    prompt: string,
+    responseSchema: unknown,
+  ): Promise<unknown> {
+    const response = await this.client.models.generateContent({
+      model: this.model,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        abortSignal: AbortSignal.timeout(this.timeoutMs),
+        responseMimeType: 'application/json',
+        responseSchema,
+      },
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error('Gemini returned an empty response');
+    }
+
+    return parseJson(text);
   }
 }
 

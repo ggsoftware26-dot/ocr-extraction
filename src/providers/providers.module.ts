@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { OCR_PROVIDER } from './ocr-provider';
+import { OCR_PROVIDER, TEXT_PROVIDER } from './ocr-provider';
 import { GeminiProvider } from './gemini.provider';
 
 @Module({
@@ -9,7 +9,11 @@ import { GeminiProvider } from './gemini.provider';
       provide: OCR_PROVIDER,
       useExisting: GeminiProvider,
     },
+    {
+      provide: TEXT_PROVIDER,
+      useExisting: GeminiProvider,
+    },
   ],
-  exports: [OCR_PROVIDER, GeminiProvider],
+  exports: [OCR_PROVIDER, TEXT_PROVIDER, GeminiProvider],
 })
 export class ProvidersModule {}
