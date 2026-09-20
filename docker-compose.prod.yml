@@ -75,9 +75,18 @@ services:
       - caddy-config:/config
     depends_on:
       - api
+    networks:
+      - default
+      - edge
 
 volumes:
   redis-data:
   ingest-data:
   caddy-data:
   caddy-config:
+
+# Shared front-door network so Caddy can reach containers from other compose
+# projects (balancr). Create it once on the host:  docker network create edge
+networks:
+  edge:
+    external: true

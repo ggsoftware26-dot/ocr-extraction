@@ -6,3 +6,26 @@
 		max_size 52428800
 	}
 }
+
+# --- balancr (separate stack, same droplet) -------------------------------
+# balancr-api / balancr-web live in the `balancr` compose project and are
+# reachable over the shared external `edge` network.
+balancr.vizo-tv.com {
+	# /api/* -> NestJS. handle_path strips the /api prefix, so the service
+	# sees its own routes (/auth, /businesses, ...) unchanged.
+	handle_path /api/* {
+		reverse_proxy balancr-api:3001 {
+			# Behind Cloudflare's proxy the origin only sees CF edge IPs.
+			header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+		}
+
+		request_body {
+			max_size 52428800
+		}
+	}
+
+	# Everything else -> the React SPA (nginx does the history fallback).
+	handle {
+		reverse_proxy balancr-web:80
+	}
+}
