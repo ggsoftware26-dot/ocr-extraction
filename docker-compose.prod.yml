@@ -13,6 +13,7 @@ services:
   api:
     build: .
     image: ocr-extraction:latest
+    container_name: ocr-extraction-api
     restart: unless-stopped
     command: ['node', 'dist/main']
     env_file: .env

@@ -1,5 +1,5 @@
 {$DOMAIN} {
-	reverse_proxy api:3000
+	reverse_proxy ocr-extraction-api:3000
 
 	# Matches MAX_FILE_BYTES default (50 MB).
 	request_body {
